@@ -805,16 +805,17 @@
         for (let j = 0; j < N; j++) {
           const cy = top + j * pitch;
           const A = carrierBased ? cellA[k][j][ic] : 0, B = carrierBased ? cellB[k][j][ic] : 0;
-          svg += W(cx + 20, cy, cx + 120, cy) + W(cx + 20, cy + 80, cx + 120, cy + 80) + CAP(cx + 70, cy, cy + 80);
-          svg += SW(cx + 20, cy, cy + 40, A === 1) + SW(cx + 20, cy + 40, cy + 80, A !== 1) + SW(cx + 120, cy, cy + 40, B === 1, '', 1) + SW(cx + 120, cy + 40, cy + 80, B !== 1, '', 1);
-          svg += DOT(cx + 20, cy + 40) + DOT(cx + 120, cy + 40) + W(cx + 20, cy + 40, cx + 4, cy + 40) + W(cx + 120, cy + 40, cx + 136, cy + 40);
-          svg += TX(cx + 84, cy + 34, `V<tspan class="sch-sub" dy="3">dc</tspan><tspan dy="-3">/${N}</tspan>`, 'sch-s', 'start');
-          svg += TX(cx + 84, cy + 58, fmtSvg((A - B > 0 ? '+' : A - B < 0 ? '−' : '') + (A - B ? 'V<sub>dc</sub>/' + N : '0')), 'sch-v', 'start');
-          if (j < N - 1) svg += W(cx + 136, cy + 40, cx + 136, cy + 90) + W(cx + 136, cy + 90, cx + 4, cy + 90) + W(cx + 4, cy + 90, cx + 4, cy + pitch + 40);
-          else svg += W(cx + 136, cy + 40, cx + 136, ybus) + DOT(cx + 136, ybus);
+          const xa = cx + 16, xc = cx + 46, xb = cx + 140, xo = cx + 152; // leg A, capacitor, leg B, output stub
+          svg += W(xa, cy, xb, cy) + W(xa, cy + 80, xb, cy + 80) + CAP(xc, cy, cy + 80);
+          svg += SW(xa, cy, cy + 40, A === 1) + SW(xa, cy + 40, cy + 80, A !== 1) + SW(xb, cy, cy + 40, B === 1, '', 1) + SW(xb, cy + 40, cy + 80, B !== 1, '', 1);
+          svg += DOT(xa, cy + 40) + DOT(xb, cy + 40) + W(xa, cy + 40, cx + 4, cy + 40) + W(xb, cy + 40, xo, cy + 40);
+          svg += TX(xc + 16, cy + 30, `V<tspan class="sch-sub" dy="3">dc</tspan><tspan dy="-3">/${N}</tspan>`, 'sch-s', 'start');
+          svg += TX(xc + 16, cy + 60, fmtSvg((A - B > 0 ? '+' : A - B < 0 ? '−' : '') + (A - B ? 'V<sub>dc</sub>/' + N : '0')), 'sch-v', 'start');
+          if (j < N - 1) svg += W(xo, cy + 40, xo, cy + 90) + W(xo, cy + 90, cx + 4, cy + 90) + W(cx + 4, cy + 90, cx + 4, cy + pitch + 40);
+          else svg += W(xo, cy + 40, xo, ybus) + DOT(xo, ybus);
         }
       });
-      svg += W(156, ybus, 476, ybus) + TX(480, ybus + 4, 'z', 'sch-l', 'start');
+      svg += W(172, ybus, 492, ybus) + TX(496, ybus + 4, 'z', 'sch-l', 'start');
       svg += LOAD3(512, [60, 100, 140]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], N)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], N)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], N)}`;
     }

@@ -1,43 +1,51 @@
-# EJ2311 Modulation of Power Electronic Converters
+# EJ2311 Modulation – PWM visualisations
 
-Course website for EJ2311 (KTH): syllabus, assignments, materials and an interactive
-**PWM Explorer** (three-phase two-level VSI: sine PWM, 1/6 third-harmonic injection, SVM, DPWM1,
-six-step and selective harmonic elimination; natural / regular sampling; waveform, harmonic spectrum,
-THD / WTHD0, R-L load current and αβ space vectors).
+Interactive visualisations of PWM for power electronic converters, made for EJ2311 *Modulation of
+Power Electronic Converters* at KTH. Live at https://enesayaz.github.io/Modulation-Course/.
+
+- **Examples** (`index.html`): cases from the lectures, computer assignments and lab, each opening
+  the explorer with its settings and a short note on what to look for.
+- **PWM Explorer** (`explorer.html`):
+  - Converters: three-phase two-level, single-phase H-bridge (bipolar/unipolar), three-level NPC,
+    and cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers).
+  - Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
+    and two- and three-level selective harmonic elimination.
+  - Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
+    spectrum, THD / WTHD0, R-L load current, voltage vectors and stator flux.
 
 It is a plain static site (HTML/CSS/JS, no build step, no external libraries), served by GitHub Pages.
 
 ## Layout
 
-| Path | What goes there |
+| Path | What it is |
 |---|---|
-| `index.html` | Home page and announcements |
-| `syllabus.html` | Course info, weekly outline, grading (fill in the `[placeholders]`) |
-| `assignments.html` | Computer exercises and lab; files go in `assignments/` |
-| `materials.html` | Lecture table; files go in `materials/lectures/`, `materials/code/` |
+| `index.html` | Example gallery |
 | `explorer.html`, `assets/js/explorer.js` | PWM explorer |
+| `assets/js/examples.js` | The example list, shared by the gallery and the explorer |
 | `assets/js/fft.js` | Radix-2 FFT used by the explorer |
 | `assets/css/style.css` | Shared styles (light and dark mode) |
 
-GitHub Pages does not list folder contents, so link each file directly, e.g.
-`<a href="materials/lectures/week01.pdf">week01.pdf</a>`.
+## Adding an example
+
+Add an item to `assets/js/examples.js`: an `id`, a `title`, a `text` (use `v_ab` for subscripts) and
+a `cfg` with the explorer settings. It then appears both in the gallery and in the explorer's picker.
 
 ## Linking to explorer settings
 
 The explorer keeps its settings in the URL, e.g.
-`explorer.html#strat=svm&carrier=tri&samp=asym&M=1&p=9&out=vab`. Use the **Copy link** button to
-get a link for the current settings and paste it into an assignment or slide.
+`explorer.html#topo=chb&cells=2&arr=ps&strat=spwm&M=0.8&p=10&out=vaz`. Use the **Copy link** button
+to get a link for the current settings.
 
-Keys: `strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
+Keys: `topo` (`2l hb npc chb`), `cells` (`1 2 3`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
+`strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
 `M`, `p`, `nshe` (`1 3 5 7`), `out` (`vaz vab van ia`), `phi` (load angle, degrees),
-`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`).
+`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), `ex` (example id).
 
 ## The Source/ folder
 
 `Source/` is the private course archive (book chapters, student submissions, exams, lab results).
-It is in `.gitignore` and must never be pushed: the repository is public once Pages is on, and
-GitHub rejects files over 100 MB. Copy individual files you want to publish into `assignments/` or
-`materials/` and link them from the pages.
+It is in `.gitignore` and must never be pushed: the repository is public, and GitHub rejects files
+over 100 MB.
 
 ## Preview locally
 
@@ -45,10 +53,3 @@ GitHub rejects files over 100 MB. Copy individual files you want to publish into
 python -m http.server 8000
 ```
 then open http://localhost:8000.
-
-## Publish on GitHub Pages
-
-1. Create a repository on GitHub and push this folder to the `main` branch.
-2. In the repository: **Settings → Pages → Build and deployment → Source: Deploy from a branch**,
-   branch `main`, folder `/ (root)`.
-3. The site appears at `https://<user>.github.io/<repository>/` after a minute.
