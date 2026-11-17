@@ -46,6 +46,7 @@
               <option value="hb">Single-phase H-bridge</option>
               <option value="npc">Three-phase, three-level NPC</option>
               <option value="chb">Three-phase cascaded H-bridge</option>
+              <option value="fc">Three-phase flying capacitor</option>
             </select>
           </div>
           <p class="info" id="topoText"></p>
@@ -55,6 +56,13 @@
               <option value="1">1 cell (3 levels)</option>
               <option value="2" selected>2 cells (5 levels)</option>
               <option value="3">3 cells (7 levels)</option>
+            </select>
+          </div>
+          <div class="ctl" data-topo="fc">
+            <label for="fcn">Switch pairs per leg</label>
+            <select id="fcn">
+              <option value="2" selected>2 pairs, 1 flying capacitor (3 levels)</option>
+              <option value="3">3 pairs, 2 flying capacitors (4 levels)</option>
             </select>
           </div>
           <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">

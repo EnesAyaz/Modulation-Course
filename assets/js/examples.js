@@ -117,6 +117,12 @@ window.PWM_EXAMPLES = [
       { id: 'ps', title: 'Phase-shifted carriers (PS)',
         text: 'Each cell has its own carrier, shifted by 180°/N. The cell harmonics cancel up to h = 2Np, here 40, and every cell switches equally often. Compare the cell commutation counts with PD.',
         cfg: { topo: 'chb', cells: 2, arr: 'ps', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'fc3', title: 'Flying capacitor, 3 levels',
+        text: 'Two switch pairs per leg and one flying capacitor charged to Vdc. The pairs follow carriers 180° apart, so both switch equally often and the capacitor stays balanced on average. The first harmonic group of v_az is at 2p.',
+        cfg: { topo: 'fc', fcn: 2, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'fc4', title: 'Flying capacitor, 4 levels',
+        text: 'Three switch pairs with carriers 120° apart and two nested flying capacitors (4Vdc/3 and 2Vdc/3). The phase voltage has four levels and the first harmonic group moves to 3p = 30. Animate the circuit to see which pair switches at each step.',
+        cfg: { topo: 'fc', fcn: 3, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
     ],
   },
 ];

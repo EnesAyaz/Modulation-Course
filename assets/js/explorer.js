@@ -18,14 +18,16 @@
     hb: ['spwm'],
     npc: ['spwm', 'thi', 'svm', 'she'],
     chb: ['spwm', 'thi', 'svm'],
+    fc: ['spwm', 'thi', 'svm'],
   };
   const ARRS = { npc: ['pd', 'pod'], chb: ['ps', 'pd', 'pod', 'apod'] };
-  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'] };
+  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'] };
   const TOPO_TEXT = {
     '2l': 'Two switches per leg. Each phase connects to +V<sub>dc</sub> or −V<sub>dc</sub>.',
     hb: 'Two legs feed one load between a and b. v<sub>ab</sub> = v<sub>az</sub> − v<sub>bz</sub> can take ±2V<sub>dc</sub> and 0.',
     npc: 'Four switches and two clamp diodes per leg. Each phase connects to +V<sub>dc</sub>, the midpoint z, or −V<sub>dc</sub>.',
     chb: 'N H-bridge cells in series per phase, each with its own dc source V<sub>dc</sub>/N. 2N + 1 levels per phase.',
+    fc: 'N complementary switch pairs per leg with N − 1 flying capacitors charged to 2V<sub>dc</sub>·k/N. N + 1 levels per phase. Phase-shifted carriers, one per switch pair.',
   };
   const DESCRIPTION = {
     spwm: () => 'v*<sub>x</sub> = M cos(ωt − φ<sub>x</sub>). Linear up to M = 1.',
@@ -42,12 +44,12 @@
   const OUT_LABEL = { vaz: 'v_az', vab: 'v_ab', van: 'v_an', ia: 'i_a' };
 
   const DEFAULTS = {
-    topo: '2l', cells: '2', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
+    topo: '2l', cells: '2', fcn: '2', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
     M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
   };
   const ctlIds = Object.keys(DEFAULTS);
-  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'cur']);
-  const computeKeys = ['topo', 'cells', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'cur']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
   let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
 
   function params() {
@@ -198,9 +200,10 @@
   function compute(p) {
     const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
     const phase = [0, -TWO_PI / 3, TWO_PI / 3];
-    const M = p.M, topo = p.topo, N = p.cells;
+    const M = p.M, topo = p.topo, N = p.cells, Nf = p.fcn, fc = topo === 'fc';
     const threePh = topo !== 'hb';
-    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
+    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
+    res.fc = fc;
     for (let k = 0; k < 3; k++) { ref[k].fill(NaN); }
 
     if (CARRIER_BASED.has(p.strat)) {
@@ -213,12 +216,13 @@
       }
       const ps = topo === 'chb' && p.arr === 'ps';
       const arr = topo === 'npc' ? (p.arr === 'pod' ? 'pod' : 'pd') : p.arr;
-      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : ps ? N : 2 * N;
+      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : ps ? N : 2 * N;
       res.nCars = K; res.ps = ps;
       const cv = new Float64Array(K);
       for (let i = 0; i < NS; i++) {
         const u = (p.p * i) / NS, fu = u - Math.floor(u);
         if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
+        else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else if (ps) for (let j = 0; j < N; j++) { const v = u + j / (2 * N); cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else {
           const t = carrierAt('tri', fu);
@@ -250,7 +254,11 @@
           ref[k][i] = r;
           if (topo === '2l') sw[k][i] = 2 * gt(r, cv[0]) - 1;
           else if (topo === 'npc') sw[k][i] = -1 + gt(r, cv[0]) + gt(r, cv[1]);
-          else {
+          else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
+            let s = 0;
+            for (let j = 0; j < Nf; j++) { const A = gt(r, cv[j]); cellA[k][j][i] = A; s += A; }
+            sw[k][i] = -1 + (2 * s) / Nf;
+          } else {
             let s = 0;
             for (let j = 0; j < N; j++) {
               let A, B;
@@ -267,6 +275,7 @@
         res.info.push('With natural sampling the clamp transitions fall inside carrier periods, so parts of pulses are lost and the fundamental drops. Regular sampling avoids this.');
       if (M > LINEAR_LIMIT[p.strat] + 1e-9)
         res.notes.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped and low-order harmonics appear (overmodulation).`);
+      if (fc) res.info.push(`The switch pairs' carriers are shifted by ${(360 / Nf).toFixed(0)}°, so each pair switches equally and the flying capacitors stay balanced on average (their voltages are assumed constant). The first harmonic group of v_az is at h = ${Nf}p = ${Nf * p.p}.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
     } else if (p.strat === 'sixstep') {
@@ -343,6 +352,7 @@
     res.wthd = Math.sqrt(w2) / amp[1];
     const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
     res.commutations = transitions(sw[0]);
+    if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
     if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
 
     // space vectors: v_αβ = 2/3 (v_a + a v_b + a² v_c), flux = ∫ v dθ
@@ -521,7 +531,7 @@
   function hmaxFor(p, res) {
     if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
     if (!CARRIER_BASED.has(p.strat)) return 50;
-    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : 3 * p.p;
+    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p : 3 * p.p;
     return Math.min(200, Math.max(40, Math.ceil((target + 8) / 10) * 10));
   }
 
@@ -794,6 +804,32 @@
       });
       svg += LOAD3(512, [120, 160, 200]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], 1)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], 1)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], 1)}`;
+    } else if (topo === 'fc') {
+      vb = '0 0 700 320';
+      const Nf = p.fcn, carrierBased = CARRIER_BASED.has(p.strat);
+      const yy = (i) => 30 + (i * 260) / (2 * Nf); // node positions along the leg, P at 0, output at Nf, N at 2Nf
+      svg += DCLINK(40, 30, 290) + W(40, 30, 470, 30) + W(40, 290, 470, 290);
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 170 + 150 * k;
+        const lab = (s) => (k ? '' : `S<tspan class="sch-sub" dy="3">${s}</tspan>`);
+        svg += DOT(x, 30) + DOT(x, 290);
+        for (let j = 0; j < Nf; j++) {
+          const on = carrierBased && cellA[k][j][ic] === 1;
+          svg += SW(x, yy(j), yy(j + 1), on, lab(j + 1), 1) + SW(x, yy(2 * Nf - j - 1), yy(2 * Nf - j), !on, lab(j + 1 + '′'), 1);
+        }
+        for (let j = 1; j < Nf; j++) { // C_j joins the node below S_j and the node above S_j′
+          const xc = x - 30 * (Nf - j), y1 = yy(j), y2 = yy(2 * Nf - j);
+          svg += DOT(x, y1) + DOT(x, y2) + W(x, y1, xc, y1) + W(x, y2, xc, y2) + CAP(xc, y1, y2);
+          if (k === 0) { // capacitor voltages, stacked left of the outermost capacitor
+            const v = fmtSvg(fmtLevel((2 * (Nf - j)) / Nf, Nf).replace('+', ''));
+            svg += Nf === 2 ? TX(xc - 14, 150, v, 'sch-s', 'end')
+              : TX(x - 30 * (Nf - 1) - 14, 146 + 30 * (j - 1), `C<tspan class="sch-sub" dy="3">${j}</tspan><tspan dy="-3"> </tspan>` + v, 'sch-s', 'end');
+          }
+        }
+        svg += DOT(x, 160) + W(x, 160, x + 24, 160) + TX(x + 28, 164, n, 'sch-l', 'start') + TX(x + 28, 182, fmtSvg(fmtLevel(lvl[k], Nf)), 'sch-v', 'start');
+      });
+      svg += LOAD3(572, [120, 160, 200]);
+      status = `v<sub>az</sub> = ${fmtLevel(lvl[0], Nf)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], Nf)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], Nf)}`;
     } else { // chb
       const top = 46, pitch = 100, H = top + N * pitch + 24;
       vb = `0 0 640 ${H}`;
@@ -842,7 +878,7 @@
       }
       if (p.topo === '2l' || p.topo === 'hb') rows.push(['Commutations / period (leg a)', String(res.commutations)]);
       else rows.push(['Level changes / period (phase a)', String(res.commutations)]);
-      if (res.cellComm) rows.push(['Commutations / period, cells of phase a', res.cellComm.join(', ')]);
+      if (res.cellComm) rows.push([p.topo === 'fc' ? 'Commutations / period, switch pairs of phase a' : 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
       if (res.angles) rows.push(['Angles (°)', res.angles.map((a) => ((a * 180) / Math.PI).toFixed(2)).join(', ')]);
     }
     $('readout').innerHTML = rows.map(([k, v]) => `<dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd>`).join('');

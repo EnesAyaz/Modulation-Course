@@ -7,7 +7,8 @@ Power Electronic Converters* at KTH. Live at https://enesayaz.github.io/Modulati
   the explorer with its settings and a short note on what to look for.
 - **PWM Explorer** (`explorer.html`):
   - Converters: three-phase two-level, single-phase H-bridge (bipolar/unipolar), three-level NPC,
-    and cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers).
+    cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers), and flying capacitor with 3 or 4
+    levels (phase-shifted carriers).
   - Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
     and two- and three-level selective harmonic elimination.
   - Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
@@ -36,7 +37,7 @@ The explorer keeps its settings in the URL, e.g.
 `explorer.html#topo=chb&cells=2&arr=ps&strat=spwm&M=0.8&p=10&out=vaz`. Use the **Copy link** button
 to get a link for the current settings.
 
-Keys: `topo` (`2l hb npc chb`), `cells` (`1 2 3`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
+Keys: `topo` (`2l hb npc chb fc`), `cells` (`1 2 3`), `fcn` (`2 3`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
 `strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
 `M`, `p`, `nshe` (`1 3 5 7`), `out` (`vaz vab van ia`), `phi` (load angle, degrees),
 `view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), `ex` (example id).
