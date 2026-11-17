@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Materials · EJ2311</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">EJ2311 Modulation</a>
+      <nav aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="syllabus.html">Syllabus</a>
+        <a href="assignments.html">Assignments</a>
+        <a href="materials.html" aria-current="page">Materials</a>
+        <a href="explorer.html">PWM Explorer</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>Materials</h1>
+
+    <h2>Course book</h2>
+    <p>D. G. Holmes, T. A. Lipo, <em>Pulse Width Modulation for Power Converters: Principles and Practice</em>, Wiley-IEEE Press, 2003.
+      KTH students can read it online through the
+      <a href="https://kth-ch.primo.exlibrisgroup.com/permalink/46KTH_INST/u5340o/alma99539287102456">KTH library</a>.</p>
+
+    <h2>Lecture slides</h2>
+    <!-- Put PDFs in materials/lectures/ and link each file directly. -->
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Lecture</th><th>Topic</th><th>Slides</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>Repetition and basics, harmonic distortion</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">2</td><td>Carrier-based modulation, overmodulation, single-phase converters</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">3</td><td>Three-phase carrier PWM, zero-vector placement, harmonic elimination</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">4</td><td>Tolerance-band methods, direct torque control</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">5</td><td>Multilevel modulation</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">6</td><td>Harmonic losses</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">7</td><td>Performance effects</td><td class="muted">Canvas</td></tr>
+          <tr><td class="num">8</td><td>Summary</td><td class="muted">Canvas</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>MATLAB code</h2>
+    <!-- Put .m files in materials/code/ and link them here. -->
+    <p>The course uses the <em>power converter modulation toolbox</em> (modlab): carrier generators
+      (<code>carrtri</code>, <code>carrsawp</code>, <code>carrsawn</code>), modulators (<code>mod_nspwm</code>, <code>mod_svm</code>, …),
+      and analytical spectra by double Fourier series (<code>anaspect2lnsc</code>, <code>spect2lanalyt</code>).
+      It is distributed via Canvas.</p>
+  </main>
+
+  <footer class="site-footer"><div class="wrap">EJ2311 Modulation of Power Electronic Converters · KTH</div></footer>
+</body>
+</html>

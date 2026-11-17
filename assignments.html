@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assignments · EJ2311</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">EJ2311 Modulation</a>
+      <nav aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="syllabus.html">Syllabus</a>
+        <a href="assignments.html" aria-current="page">Assignments</a>
+        <a href="materials.html">Materials</a>
+        <a href="explorer.html">PWM Explorer</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>Assignments</h1>
+    <p>Reports are uploaded to Canvas. Each <em>Explorer</em> link opens the PWM Explorer with the settings used in the task,
+      so you can check your MATLAB results against it.</p>
+
+    <h2>Computer exercises</h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Exercise</th><th>Content</th><th>Files</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Preparatory work</td>
+            <td>Handed out at lecture 1, handed in at the start of computer exercise 1.</td>
+            <td class="muted">Canvas</td>
+          </tr>
+          <tr>
+            <td>Computer exercise 1</td>
+            <td>Fourier coefficients by FFT, WTHD0, switched waveform of a phase leg with sawtooth carrier
+              (v<sub>dc</sub> = 1, v*<sub>az</sub> = 0.75 cos 2πt, p = 11) and comparison with the analytical Bessel-function spectrum.<br>
+              <span class="muted">Explorer: <a href="explorer.html#strat=spwm&amp;carrier=sawr&amp;samp=nat&amp;M=0.75&amp;p=11&amp;out=vaz&amp;hmax=25">sawtooth, M = 0.75, p = 11</a></span></td>
+            <td><a href="assignments/computer_assignment_1.pdf">computer_assignment_1.pdf</a></td>
+          </tr>
+          <tr>
+            <td>Computer exercise 2</td>
+            <td>Carrier comparison (triangle and sawtooth) for different M and p.<br>
+              <span class="muted">Explorer: <a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=nat&amp;M=0.5&amp;p=10&amp;out=vaz">triangle, M = 0.5, p = 10</a>,
+              <a href="explorer.html#strat=spwm&amp;carrier=sawr&amp;samp=nat&amp;M=0.5&amp;p=10&amp;out=vaz">sawtooth, M = 0.5, p = 10</a></span></td>
+            <td class="muted">Canvas</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Laboratory exercise</h2>
+    <p>Three-phase SiC converter (v<sub>dc</sub> = 200 V) feeding an induction machine, asymmetrical regular sampling, f<sub>1</sub> = 50 Hz.
+      Read and sign the <strong>safety instructions</strong> before the lab.</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Part</th><th>Task</th><th>Explorer</th></tr></thead>
+        <tbody>
+          <tr><td class="num">3.1</td><td>Pulse number and the phase current, M = 0.8, p = 9, 24, 39</td>
+            <td><a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=9&amp;out=ia">p = 9</a>,
+              <a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=24&amp;out=ia">24</a>,
+              <a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=39&amp;out=ia">39</a></td></tr>
+          <tr><td class="num">3.2</td><td>Third-harmonic injection, M = 0.8, p = 22; SPWM vs SVM at M = 1, p = 9</td>
+            <td><a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=22&amp;out=vaz">SPWM</a>,
+              <a href="explorer.html#strat=thi&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=22&amp;out=vaz">+1/6 THI</a>,
+              <a href="explorer.html#strat=svm&amp;carrier=tri&amp;samp=asym&amp;M=1&amp;p=9&amp;out=vab">SVM</a></td></tr>
+          <tr><td class="num">3.3</td><td>Overmodulation, M = 1.15 … 2.0, p = 22</td>
+            <td><a href="explorer.html#strat=spwm&amp;carrier=tri&amp;samp=asym&amp;M=1.15&amp;p=22&amp;out=vab">M = 1.15</a></td></tr>
+          <tr><td class="num">3.4</td><td>Voltage vector and stator flux: six-step vs PWM with THI</td>
+            <td><a href="explorer.html#strat=sixstep&amp;out=vab">six-step</a>,
+              <a href="explorer.html#strat=thi&amp;carrier=tri&amp;samp=asym&amp;M=0.8&amp;p=22&amp;out=vab">THI</a></td></tr>
+          <tr><td class="num">3.5</td><td>Harmonic elimination with 1, 3, 5 and 7 angles, M = 0.8</td>
+            <td><a href="explorer.html#strat=she&amp;nshe=5&amp;M=0.8&amp;out=vaz">5 angles</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><a href="assignments/lab/labpm_2023.pdf">Lab instructions (PDF)</a></p>
+  </main>
+
+  <footer class="site-footer"><div class="wrap">EJ2311 Modulation of Power Electronic Converters · KTH</div></footer>
+</body>
+</html>

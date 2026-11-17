@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PWM Explorer · EJ2311</title>
+  <meta name="description" content="Interactive PWM explorer: carrier-based PWM, zero-sequence injection, SVM, overmodulation, six-step and selective harmonic elimination, with waveform, harmonic spectrum and space vectors.">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">EJ2311 Modulation</a>
+      <nav aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="syllabus.html">Syllabus</a>
+        <a href="assignments.html">Assignments</a>
+        <a href="materials.html">Materials</a>
+        <a href="explorer.html" aria-current="page">PWM Explorer</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>PWM Explorer</h1>
+    <p class="muted">Three-phase two-level voltage source inverter. Change the modulation strategy, modulation index M and
+      pulse number p, and see the switched waveform, its harmonic spectrum and the space vectors.
+      One fundamental period, sampled at 16 384 points.</p>
+
+    <div class="demo">
+      <!-- Controls -->
+      <div>
+        <section class="panel" aria-labelledby="h-strat">
+          <h2 id="h-strat">Modulation</h2>
+          <div class="ctl">
+            <label for="strat">Strategy</label>
+            <select id="strat">
+              <optgroup label="Carrier-based">
+                <option value="spwm">Sine PWM</option>
+                <option value="thi">Sine PWM + 1/6 third harmonic</option>
+                <option value="svm">SVM (centred zero vectors)</option>
+                <option value="dpwm1">Discontinuous PWM (DPWM1)</option>
+              </optgroup>
+              <optgroup label="Programmed">
+                <option value="sixstep">Six-step</option>
+                <option value="she">Selective harmonic elimination</option>
+              </optgroup>
+            </select>
+          </div>
+          <p class="equation" id="equation"></p>
+          <div class="ctl" data-for="spwm thi svm dpwm1">
+            <label for="carrier">Carrier</label>
+            <select id="carrier">
+              <option value="tri">Triangle</option>
+              <option value="sawr">Sawtooth, rising</option>
+              <option value="sawf">Sawtooth, falling</option>
+            </select>
+          </div>
+          <div class="ctl" data-for="spwm thi svm dpwm1">
+            <label for="samp">Sampling</label>
+            <select id="samp">
+              <option value="nat">Natural</option>
+              <option value="sym">Regular, symmetrical</option>
+              <option value="asym">Regular, asymmetrical</option>
+            </select>
+          </div>
+          <div class="ctl" data-for="she">
+            <label for="nshe">Switching angles per quarter period</label>
+            <select id="nshe">
+              <option value="1">1 angle</option>
+              <option value="3">3 angles (eliminates 5, 7)</option>
+              <option value="5" selected>5 angles (eliminates 5, 7, 11, 13)</option>
+              <option value="7">7 angles (eliminates 5 … 19)</option>
+            </select>
+          </div>
+          <div class="ctl" data-for="spwm thi svm dpwm1 she">
+            <label for="M"><span>Modulation index M</span> <output id="M-out"></output></label>
+            <input type="range" id="M" min="0" max="2" step="0.01" value="0.8">
+          </div>
+          <div class="ctl" data-for="spwm thi svm dpwm1">
+            <label for="p"><span>Pulse number p = f<sub>c</sub>/f<sub>1</sub></span> <output id="p-out"></output></label>
+            <input type="range" id="p" min="3" max="60" step="1" value="21">
+          </div>
+          <div class="btn-row ctl" data-for="spwm thi svm dpwm1 she">
+            <button type="button" id="sweep" aria-pressed="false">▶ Sweep M</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="h-out">
+          <h2 id="h-out">Output</h2>
+          <div class="ctl">
+            <label for="out">Quantity</label>
+            <select id="out">
+              <option value="vaz">Phase-leg voltage vaz</option>
+              <option value="vab">Line-to-line voltage vab</option>
+              <option value="van">Load phase voltage van</option>
+              <option value="ia">Phase current ia (R-L load)</option>
+            </select>
+          </div>
+          <div class="ctl" id="phi-ctl">
+            <label for="phi"><span>Load angle φ<sub>1</sub> = atan(ω<sub>1</sub>L/R)</span> <output id="phi-out"></output></label>
+            <input type="range" id="phi" min="0" max="89" step="1" value="70">
+          </div>
+          <dl class="readout" id="readout"></dl>
+          <p class="note" id="note" role="status"></p>
+          <p class="info" id="info"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="h-presets">
+          <h2 id="h-presets">Course examples</h2>
+          <div class="btn-row" id="presets"></div>
+        </section>
+      </div>
+
+      <!-- Plots -->
+      <div>
+        <section class="panel" aria-labelledby="h-time">
+          <div class="plot-head">
+            <h2 id="h-time">Waveforms, one fundamental period</h2>
+            <div class="btn-row">
+              <button type="button" id="allph" aria-pressed="false">All phases</button>
+              <select id="view" aria-label="Angle range shown">
+                <option value="360" selected>0 – 360°</option>
+                <option value="180">0 – 180°</option>
+                <option value="90">0 – 90°</option>
+              </select>
+            </div>
+          </div>
+          <canvas class="plot" id="timeCanvas" role="img" aria-label="Carrier and references, and the switched output waveform"></canvas>
+        </section>
+
+        <section class="panel" aria-labelledby="h-spec">
+          <div class="plot-head">
+            <h2 id="h-spec">Harmonic spectrum</h2>
+            <div class="btn-row">
+              <button type="button" id="scale" aria-pressed="false">dB scale</button>
+              <select id="hmax" aria-label="Highest harmonic shown">
+                <option value="auto" selected>Auto range</option>
+                <option value="25">h ≤ 25</option>
+                <option value="50">h ≤ 50</option>
+                <option value="100">h ≤ 100</option>
+                <option value="200">h ≤ 200</option>
+              </select>
+              <button type="button" id="share">Copy link</button>
+            </div>
+          </div>
+          <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
+        </section>
+
+        <section class="panel" aria-labelledby="h-sv">
+          <div class="plot-head">
+            <h2 id="h-sv">Space vectors</h2>
+          </div>
+          <canvas class="plot" id="svCanvas" role="img" aria-label="Voltage vectors used and stator flux trajectory in the alpha-beta plane"></canvas>
+        </section>
+      </div>
+    </div>
+
+    <h2>Conventions</h2>
+    <p>Units follow Holmes &amp; Lipo: the dc link is 2V<sub>dc</sub> with midpoint z, so each phase leg switches between
+      ±V<sub>dc</sub>, and M = 1 gives a fundamental of V<sub>dc</sub> in v<sub>az</sub>. All voltages are shown per unit of V<sub>dc</sub>.
+      Harmonic amplitudes are peak values. WTHD0 = √(Σ<sub>n≥2</sub>(V<sub>n</sub>/n)²) divided by the fundamental at M = 1
+      (V<sub>dc</sub> for phase quantities, √3·V<sub>dc</sub> for line-to-line), and WTHD = WTHD0 / M.
+      The R-L load is star-connected with an isolated neutral; its impedance is normalised to 1 at the fundamental.
+      The flux is ψ = ∫v<sub>αβ</sub> dθ, in per unit of V<sub>dc</sub>/ω<sub>1</sub>.</p>
+  </main>
+
+  <footer class="site-footer"><div class="wrap">EJ2311 Modulation of Power Electronic Converters · KTH</div></footer>
+
+  <script src="assets/js/fft.js"></script>
+  <script src="assets/js/explorer.js"></script>
+</body>
+</html>

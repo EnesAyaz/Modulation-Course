@@ -1,0 +1,9 @@
+# Private course archive: book chapters, student submissions, exams, lab results.
+# Never publish. Copy individual files you want on the site into assignments/ or materials/.
+Source/
+*.zip
+
+.claude/
+__pycache__/
+.DS_Store
+Thumbs.db
