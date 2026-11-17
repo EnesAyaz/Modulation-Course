@@ -128,4 +128,30 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
 #timeCanvas { height: 380px; }
 #specCanvas { height: 300px; cursor: crosshair; }
 #svCanvas { height: 300px; }
+#timeCanvas { cursor: col-resize; }
 @media (max-width: 520px) { #svCanvas { height: 200px; } #timeCanvas { height: 340px; } }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Circuit schematic */
+.circuit svg { display: block; width: 100%; height: auto; max-height: 340px; margin: 0 auto; }
+.circuit-status { margin: .3rem 0 .6rem; font-size: .88rem; color: var(--muted); max-width: none; }
+.cursor-ctl { margin-bottom: 0; }
+.sch-w { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.sch-p { stroke: var(--text); stroke-width: 2.4; }
+.sch-on { stroke: var(--c-signal); stroke-width: 3.4; stroke-linecap: round; }
+.sch-off { stroke: var(--c-carrier); stroke-width: 2; stroke-linecap: round; }
+.sch-c { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+.sch-dot, .sch-d { fill: var(--muted); }
+.sch-r { fill: var(--surface); stroke: var(--muted); stroke-width: 1.4; }
+.sch-t { fill: var(--muted); font: 12px var(--font); }
+.sch-s { fill: var(--muted); font: 11px var(--font); }
+.sch-l { fill: var(--text); font: 600 14px var(--font); }
+.sch-v { fill: var(--c-message); font: 600 12px var(--font); }
+.sch-sub { font-size: 75%; }
+
+/* Example gallery */
+.ex-group { margin-top: 2rem; }
+.ex-group h2 { margin-bottom: .1rem; }
+.ex-group .src { margin: 0 0 .6rem; font-size: .9rem; }
+.card .open { display: inline-block; margin-top: .5rem; font-size: .88rem; color: var(--accent); }

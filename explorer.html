@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PWM Explorer · EJ2311</title>
-  <meta name="description" content="Interactive PWM explorer: carrier-based PWM, zero-sequence injection, SVM, overmodulation, six-step and selective harmonic elimination, with waveform, harmonic spectrum and space vectors.">
+  <meta name="description" content="Interactive PWM explorer: two-level, H-bridge, NPC and cascaded H-bridge converters with carrier PWM, third-harmonic injection, SVM, DPWM, six-step and harmonic elimination. Waveforms, harmonic spectrum, space vectors and an animated circuit.">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -12,10 +12,7 @@
     <div class="wrap">
       <a class="brand" href="index.html">EJ2311 Modulation</a>
       <nav aria-label="Main">
-        <a href="index.html">Home</a>
-        <a href="syllabus.html">Syllabus</a>
-        <a href="assignments.html">Assignments</a>
-        <a href="materials.html">Materials</a>
+        <a href="index.html">Examples</a>
         <a href="explorer.html" aria-current="page">PWM Explorer</a>
       </nav>
     </div>
@@ -23,22 +20,70 @@
 
   <main class="wrap">
     <h1>PWM Explorer</h1>
-    <p class="muted">Three-phase two-level voltage source inverter. Change the modulation strategy, modulation index M and
-      pulse number p, and see the switched waveform, its harmonic spectrum and the space vectors.
-      One fundamental period, sampled at 16 384 points.</p>
+    <p class="muted">Pick a converter and a modulation method, then change M and p. The circuit, the waveforms, the harmonic
+      spectrum and the space vectors update together. One fundamental period is computed at 16 384 points.</p>
 
     <div class="demo">
       <!-- Controls -->
       <div>
+        <section class="panel" aria-labelledby="h-ex">
+          <h2 id="h-ex">Example</h2>
+          <div class="ctl">
+            <label for="example" class="sr-only">Load an example</label>
+            <select id="example">
+              <option value="">Choose an example…</option>
+            </select>
+          </div>
+          <p class="info" id="exText"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="h-conv">
+          <h2 id="h-conv">Converter</h2>
+          <div class="ctl">
+            <label for="topo">Topology</label>
+            <select id="topo">
+              <option value="2l">Three-phase, two-level</option>
+              <option value="hb">Single-phase H-bridge</option>
+              <option value="npc">Three-phase, three-level NPC</option>
+              <option value="chb">Three-phase cascaded H-bridge</option>
+            </select>
+          </div>
+          <p class="info" id="topoText"></p>
+          <div class="ctl" data-topo="chb">
+            <label for="cells">Cells per phase</label>
+            <select id="cells">
+              <option value="1">1 cell (3 levels)</option>
+              <option value="2" selected>2 cells (5 levels)</option>
+              <option value="3">3 cells (7 levels)</option>
+            </select>
+          </div>
+          <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">
+            <label for="arr">Carriers</label>
+            <select id="arr">
+              <option value="ps">Phase-shifted (PS)</option>
+              <option value="pd" selected>Phase disposition (PD)</option>
+              <option value="pod">Phase opposition disposition (POD)</option>
+              <option value="apod">Alternative phase opposition (APOD)</option>
+            </select>
+          </div>
+          <div class="ctl" data-topo="hb">
+            <label for="hbmod">Switching</label>
+            <select id="hbmod">
+              <option value="bip">Bipolar: leg b = inverse of leg a (2 levels)</option>
+              <option value="uni" selected>Unipolar: leg b uses −v* (3 levels)</option>
+            </select>
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="h-strat">
           <h2 id="h-strat">Modulation</h2>
           <div class="ctl">
-            <label for="strat">Strategy</label>
+            <label for="strat">Method</label>
             <select id="strat">
               <optgroup label="Carrier-based">
                 <option value="spwm">Sine PWM</option>
                 <option value="thi">Sine PWM + 1/6 third harmonic</option>
-                <option value="svm">SVM (centred zero vectors)</option>
+                <option value="svm">SVM (min–max zero sequence)</option>
                 <option value="dpwm1">Discontinuous PWM (DPWM1)</option>
               </optgroup>
               <optgroup label="Programmed">
@@ -48,7 +93,7 @@
             </select>
           </div>
           <p class="equation" id="equation"></p>
-          <div class="ctl" data-for="spwm thi svm dpwm1">
+          <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
             <label for="carrier">Carrier</label>
             <select id="carrier">
               <option value="tri">Triangle</option>
@@ -56,7 +101,7 @@
               <option value="sawf">Sawtooth, falling</option>
             </select>
           </div>
-          <div class="ctl" data-for="spwm thi svm dpwm1">
+          <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
             <label for="samp">Sampling</label>
             <select id="samp">
               <option value="nat">Natural</option>
@@ -91,10 +136,10 @@
           <div class="ctl">
             <label for="out">Quantity</label>
             <select id="out">
-              <option value="vaz">Phase-leg voltage vaz</option>
-              <option value="vab">Line-to-line voltage vab</option>
+              <option value="vaz">Phase voltage vaz (to dc midpoint z)</option>
+              <option value="vab">Line-to-line / load voltage vab</option>
               <option value="van">Load phase voltage van</option>
-              <option value="ia">Phase current ia (R-L load)</option>
+              <option value="ia">Load current ia (R-L load)</option>
             </select>
           </div>
           <div class="ctl" id="phi-ctl">
@@ -105,20 +150,30 @@
           <p class="note" id="note" role="status"></p>
           <p class="info" id="info"></p>
         </section>
-
-        <section class="panel" aria-labelledby="h-presets">
-          <h2 id="h-presets">Course examples</h2>
-          <div class="btn-row" id="presets"></div>
-        </section>
       </div>
 
       <!-- Plots -->
       <div>
+        <section class="panel" aria-labelledby="h-circ">
+          <div class="plot-head">
+            <h2 id="h-circ">Circuit</h2>
+            <div class="btn-row">
+              <button type="button" id="play" aria-pressed="false">▶ Animate</button>
+            </div>
+          </div>
+          <div id="circuit" class="circuit"></div>
+          <p class="circuit-status" id="circuitStatus" aria-live="off"></p>
+          <div class="ctl cursor-ctl">
+            <label for="cur"><span>Time cursor ω<sub>1</sub>t (or click the waveforms)</span> <output id="cur-out"></output></label>
+            <input type="range" id="cur" min="0" max="359" step="0.5" value="30">
+          </div>
+        </section>
+
         <section class="panel" aria-labelledby="h-time">
           <div class="plot-head">
             <h2 id="h-time">Waveforms, one fundamental period</h2>
             <div class="btn-row">
-              <button type="button" id="allph" aria-pressed="false">All phases</button>
+              <button type="button" id="allph" aria-pressed="false" data-topo="2l npc chb">All phases</button>
               <select id="view" aria-label="Angle range shown">
                 <option value="360" selected>0 – 360°</option>
                 <option value="180">0 – 180°</option>
@@ -126,7 +181,7 @@
               </select>
             </div>
           </div>
-          <canvas class="plot" id="timeCanvas" role="img" aria-label="Carrier and references, and the switched output waveform"></canvas>
+          <canvas class="plot" id="timeCanvas" role="img" aria-label="Carriers and references, and the switched output waveform"></canvas>
         </section>
 
         <section class="panel" aria-labelledby="h-spec">
@@ -147,7 +202,7 @@
           <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
         </section>
 
-        <section class="panel" aria-labelledby="h-sv">
+        <section class="panel" aria-labelledby="h-sv" data-topo="2l npc chb">
           <div class="plot-head">
             <h2 id="h-sv">Space vectors</h2>
           </div>
@@ -157,17 +212,20 @@
     </div>
 
     <h2>Conventions</h2>
-    <p>Units follow Holmes &amp; Lipo: the dc link is 2V<sub>dc</sub> with midpoint z, so each phase leg switches between
-      ±V<sub>dc</sub>, and M = 1 gives a fundamental of V<sub>dc</sub> in v<sub>az</sub>. All voltages are shown per unit of V<sub>dc</sub>.
+    <p>Units follow Holmes &amp; Lipo: the dc link is 2V<sub>dc</sub> with midpoint z, so every phase output lies between
+      −V<sub>dc</sub> and +V<sub>dc</sub>, and M = 1 gives a fundamental of V<sub>dc</sub> in v<sub>az</sub>. In the cascaded H-bridge
+      each cell has V<sub>dc</sub>/N, and z is the star point of the strings. All voltages are shown per unit of V<sub>dc</sub>.
       Harmonic amplitudes are peak values. WTHD0 = √(Σ<sub>n≥2</sub>(V<sub>n</sub>/n)²) divided by the fundamental at M = 1
-      (V<sub>dc</sub> for phase quantities, √3·V<sub>dc</sub> for line-to-line), and WTHD = WTHD0 / M.
-      The R-L load is star-connected with an isolated neutral; its impedance is normalised to 1 at the fundamental.
-      The flux is ψ = ∫v<sub>αβ</sub> dθ, in per unit of V<sub>dc</sub>/ω<sub>1</sub>.</p>
+      (V<sub>dc</sub> for phase quantities, √3·V<sub>dc</sub> for three-phase line-to-line, 2V<sub>dc</sub> for the H-bridge),
+      and WTHD = WTHD0 / M. The R-L load has its impedance normalised to 1 at the fundamental; the three-phase load is
+      star-connected with an isolated neutral. The flux is ψ = ∫v<sub>αβ</sub> dθ, in per unit of V<sub>dc</sub>/ω<sub>1</sub>.
+      Multilevel carriers are triangular with natural sampling.</p>
   </main>
 
   <footer class="site-footer"><div class="wrap">EJ2311 Modulation of Power Electronic Converters · KTH</div></footer>
 
   <script src="assets/js/fft.js"></script>
+  <script src="assets/js/examples.js"></script>
   <script src="assets/js/explorer.js"></script>
 </body>
 </html>
