@@ -273,8 +273,10 @@
       }
       if (p.strat === 'dpwm1' && samp === 'nat')
         res.info.push('With natural sampling the clamp transitions fall inside carrier periods, so parts of pulses are lost and the fundamental drops. Regular sampling avoids this.');
-      if (M > LINEAR_LIMIT[p.strat] + 1e-9)
-        res.notes.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped and low-order harmonics appear (overmodulation).`);
+      if (M > LINEAR_LIMIT[p.strat] + 1e-9) {
+        res.notes.push(`Overmodulation: M > ${LINEAR_LIMIT[p.strat].toFixed(3)}`);
+        res.info.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped near the peaks and low-order harmonics appear.`);
+      }
       if (fc) res.info.push(`The switch pairs' carriers are shifted by ${(360 / Nf).toFixed(0)}°, so each pair switches equally and the flying capacitors stay balanced on average (their voltages are assumed constant). The first harmonic group of v_az is at h = ${Nf}p = ${Nf * p.p}.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
@@ -292,7 +294,8 @@
       const angles = sheSolve(kind, p.nshe, M);
       res.angles = angles;
       if (!angles) {
-        res.notes.push(`No switching angles found for M = ${M.toFixed(2)} with ${p.nshe} angles. Try a smaller M.`);
+        res.notes.push(`No solution at M = ${M.toFixed(2)}`);
+        res.info.push(`No switching angles were found for M = ${M.toFixed(2)} with ${p.nshe} angles. Try a smaller M.`);
         for (let k = 0; k < 3; k++) { sw[k].fill(0); ref[k].fill(0); }
         res.failed = true;
         return res;
@@ -386,12 +389,27 @@
   }
 
   // ---------- drawing helpers ----------
+  // Plot colours come from the theme tokens. A probe element resolves var()/calc()/oklch() to a usable colour.
   const colors = {};
-  function readColors() {
-    const cs = getComputedStyle(document.documentElement);
-    for (const k of ['text', 'muted', 'border', 'surface', 'bg', 'c-signal', 'c-message', 'c-aux', 'c-third', 'c-carrier', 'c-grid'])
-      colors[k] = cs.getPropertyValue('--' + k).trim();
+  const TOKEN_MAP = {
+    text: '--text', muted: '--text-3', border: '--border-2', surface: '--surface', bg: '--surface-2',
+    'c-signal': '--series-1', 'c-message': '--series-2', 'c-aux': '--series-3', 'c-third': '--series-7',
+    'c-carrier': '--text-faint', 'c-grid': '--border',
+  };
+  function tokenColor(name) {
+    const i = document.createElement('i');
+    i.style.display = 'none'; i.style.color = `var(${name})`;
+    document.body.appendChild(i);
+    const c = getComputedStyle(i).color;
+    i.remove();
+    return c;
   }
+  let FONT = 'system-ui, sans-serif';
+  function readColors() {
+    for (const [k, t] of Object.entries(TOKEN_MAP)) colors[k] = tokenColor(t);
+    FONT = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || FONT;
+  }
+  const font = (size, weight) => `${weight ? weight + ' ' : ''}${size}px ${FONT}`;
   function prep(canvas) {
     const dpr = window.devicePixelRatio || 1;
     const r = canvas.getBoundingClientRect();
@@ -400,7 +418,7 @@
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, r.width, r.height);
-    ctx.font = '11px system-ui, sans-serif';
+    ctx.font = font(11);
     return { ctx, w: r.width, h: r.height };
   }
   function niceStep(range, count) {
@@ -453,18 +471,18 @@
   function header(ctx, box, title, items) {
     ctx.save();
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-    ctx.font = '600 12px system-ui, sans-serif';
+    ctx.font = font(12, 600);
     const tw = ctx.measureText(title).width;
-    ctx.font = '11px system-ui, sans-serif';
+    ctx.font = font(11);
     let width = tw + 12;
     for (const [label] of items) width += 28 + ctx.measureText(label).width;
     const x0 = box.x + 4, y0 = box.y + 4, yy = y0 + 10;
     ctx.fillStyle = colors.surface; ctx.globalAlpha = 0.92;
     ctx.fillRect(x0, y0, Math.min(width + 4, box.w - 8), 20);
     ctx.globalAlpha = 1;
-    ctx.font = '600 12px system-ui, sans-serif'; ctx.fillStyle = colors.text;
+    ctx.font = font(12, 600); ctx.fillStyle = colors.text;
     ctx.fillText(title, x0 + 6, yy);
-    ctx.font = '11px system-ui, sans-serif';
+    ctx.font = font(11);
     let x = x0 + tw + 18;
     for (const [label, color, dash] of items) {
       ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash || []);
@@ -668,7 +686,7 @@
       ctx.globalAlpha = 1;
     }
     if (L === 2 && b0.s > 170) {
-      ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = colors.muted;
+      ctx.font = font(10); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = colors.muted;
       for (const [a, b, c] of [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1], [1, 0, 1]]) {
         const [va, vb] = alphaBeta(2 * a - 1, 2 * b - 1, 2 * c - 1);
         ctx.fillText(`${a}${b}${c}`, P0.X(va * 1.3), P0.Y(vb * 1.3));
@@ -680,7 +698,7 @@
     ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(P0.X(0), P0.Y(0)); ctx.lineTo(P0.X(ca), P0.Y(cb)); ctx.stroke();
     ctx.beginPath(); ctx.arc(P0.X(ca), P0.Y(cb), 6, 0, TWO_PI); ctx.stroke();
-    ctx.font = '11px system-ui, sans-serif';
+    ctx.font = font(11);
     header(ctx, { x: b0.x, y: b0.y, w: b0.s }, 'Voltage vectors', []);
 
     // right: flux
@@ -704,7 +722,7 @@
     header(ctx, { x: b1.x, y: b1.y, w: b1.s }, 'Stator flux ψ', []);
 
     ctx.fillStyle = colors.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-    ctx.font = '10px system-ui, sans-serif';
+    ctx.font = font(10);
     ctx.fillText('dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
     ctx.fillText('dot size: dwell time', b0.x + 6, b0.y + b0.s - 4);
   }
@@ -881,10 +899,12 @@
       if (res.cellComm) rows.push([p.topo === 'fc' ? 'Commutations / period, switch pairs of phase a' : 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
       if (res.angles) rows.push(['Angles (°)', res.angles.map((a) => ((a * 180) / Math.PI).toFixed(2)).join(', ')]);
     }
-    $('readout').innerHTML = rows.map(([k, v]) => `<dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd>`).join('');
-    $('note').textContent = res.notes.join(' ');
-    $('info').textContent = res.info.join(' ');
+    $('readout').innerHTML = rows.map(([k, v]) => `<div><dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd></div>`).join('');
+    $('note').innerHTML = res.notes.length ? window.AtlasUI.icon('alert') + `<span>${res.notes.join(' · ')}</span>` : '';
+    const sub = (s) => s.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>');
+    window.AtlasUI.setTip('outTip', OUT_TIP + res.info.map((s) => `<p>${sub(s)}</p>`).join(''));
   }
+  const OUT_TIP = '<p><b>v<sub>az</sub></b> phase output to the dc midpoint z · <b>v<sub>ab</sub></b> line-to-line (the load voltage for the H-bridge) · <b>v<sub>an</sub></b> load phase voltage · <b>i<sub>a</sub></b> current in an R-L load with angle φ<sub>1</sub>.</p>';
 
   // ---------- UI ----------
   // keep select values consistent with the chosen converter
@@ -900,8 +920,8 @@
     for (const g of $('strat').querySelectorAll('optgroup')) g.hidden = ![...g.children].some((o) => !o.hidden);
   }
   function syncUI(p) {
-    $('equation').innerHTML = DESCRIPTION[p.strat](p.topo);
-    $('topoText').innerHTML = TOPO_TEXT[p.topo];
+    window.AtlasUI.setTip('stratTip', DESCRIPTION[p.strat](p.topo));
+    window.AtlasUI.setTip('topoTip', TOPO_TEXT[p.topo]);
     document.querySelectorAll('[data-for], [data-topo]').forEach((el) => {
       const okS = !el.dataset.for || el.dataset.for.split(' ').includes(p.strat);
       const okT = !el.dataset.topo || el.dataset.topo.split(' ').includes(p.topo);
@@ -917,6 +937,7 @@
   let lastKey = '', lastRes = null;
   function render() {
     constrain();
+    window.AtlasUI.syncSegs();
     const p = params();
     syncUI(p);
     const key = computeKeys.map((k) => p[k]).join('|');
@@ -953,7 +974,7 @@
   function showExample(id) {
     const ex = EXAMPLES.get(id);
     $('example').value = ex ? id : '';
-    $('exText').innerHTML = ex ? `<strong>${ex.title}</strong> <span class="muted">(${ex.source})</span><br>${ex.text.replace(/_(\w+)/g, '<sub>$1</sub>')}` : '';
+    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${ex.group} · ${ex.source}</p>` : '');
   }
   function loadExample(id) {
     const ex = EXAMPLES.get(id);
@@ -965,7 +986,11 @@
   }
 
   function init() {
+    window.AtlasUI.init();
     readColors();
+    const UI = window.AtlasUI;
+    UI.setToggle($('sweep'), false, 'Stop sweep', 'Sweep M', 'pause', 'activity');
+    UI.setToggle($('play'), false, 'Pause', 'Animate', 'pause', 'play');
     const sel = $('example');
     for (const g of window.PWM_EXAMPLES || []) {
       const og = document.createElement('optgroup');
@@ -981,9 +1006,11 @@
     $('share').addEventListener('click', async (e) => {
       writeHash();
       const btn = e.currentTarget;
-      try { await navigator.clipboard.writeText(location.href); btn.textContent = 'Copied ✓'; }
-      catch { btn.textContent = 'Copy from address bar'; }
-      setTimeout(() => (btn.textContent = 'Copy link'), 1600);
+      let ok = true;
+      try { await navigator.clipboard.writeText(location.href); } catch { ok = false; }
+      btn.innerHTML = UI.icon(ok ? 'check' : 'alert');
+      btn.title = ok ? 'Link copied' : 'Copy the address from the address bar';
+      setTimeout(() => { btn.innerHTML = UI.icon('link'); btn.title = 'Copy link'; }, 1600);
     });
 
     // animation: sweep M back and forth, and/or move the time cursor
@@ -1012,15 +1039,13 @@
     $('sweep').addEventListener('click', (e) => {
       sweeping = !sweeping;
       const b = e.currentTarget;
-      b.setAttribute('aria-pressed', sweeping);
-      b.textContent = sweeping ? '❚❚ Stop sweep' : '▶ Sweep M';
+      UI.setToggle(b, sweeping, 'Stop sweep', 'Sweep M', 'pause', 'activity');
       if (sweeping) startLoop(); else { writeHash(); schedule(); }
     });
     $('play').addEventListener('click', (e) => {
       playing = !playing;
       const b = e.currentTarget;
-      b.setAttribute('aria-pressed', playing);
-      b.textContent = playing ? '❚❚ Pause' : '▶ Animate';
+      UI.setToggle(b, playing, 'Pause', 'Animate', 'pause', 'play');
       if (playing) startLoop(); else { writeHash(); schedule(); }
     });
 
@@ -1041,7 +1066,9 @@
     sc.addEventListener('pointerleave', () => { hoverX = null; schedule(); });
     window.addEventListener('resize', schedule);
     window.addEventListener('hashchange', () => { readHash(); schedule(); });
-    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); schedule(); });
+    const recolor = () => { readColors(); lastKey = ''; schedule(); };
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', recolor);
+    new MutationObserver(recolor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     render();
   }
 

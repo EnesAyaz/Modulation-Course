@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+(function () {
+  var t = null; try { t = localStorage.getItem('atlas-theme'); } catch (e) {}
+  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PWM Explorer</title>
+<meta name="description" content="Interactive PWM explorer for EJ2311 (KTH): two-level, H-bridge, NPC, cascaded H-bridge and flying capacitor converters with carrier PWM, SVM, DPWM, six-step and harmonic elimination.">
+<link rel="icon" href="{{LOGO}}">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<div class="aura" aria-hidden="true"><b></b><b></b><b></b></div>
+
+<header class="topbar glass">
+  <img class="logo" src="{{LOGO}}" alt="">
+  <h1>PWM Explorer</h1>
+  <button class="tip" aria-label="About this page" data-tip="<p><b>PWM Explorer</b> for EJ2311 <i>Modulation of Power Electronic Converters</i>, KTH.</p><p>Pick an example, or choose a converter and a modulation method yourself. The circuit, the waveforms, the harmonic spectrum and the space vectors update together.</p><p>One fundamental period is computed at 16 384 points, so the FFT bins are exactly the harmonic orders. Every setting is kept in the address, so a copied link reopens the same case.</p>"></button>
+  <span class="spacer"></span>
+  <div class="ex">
+    <label for="example" hidden>Example</label>
+    <select id="example"><option value="">Examples…</option></select>
+    <button class="tip" id="exTip" aria-label="About this example" hidden></button>
+  </div>
+  <div class="seg sm" id="themeSeg" aria-label="Theme"></div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <section class="card" aria-labelledby="h-conv">
+      <div class="card-h"><h2 id="h-conv">Converter</h2><button class="tip" id="topoTip" aria-label="About this converter"></button></div>
+      <div class="ctl">
+        <select id="topo" hidden>
+          <option value="2l" data-short="2L" title="Three-phase, two-level">Three-phase, two-level</option>
+          <option value="hb" data-short="HB" title="Single-phase H-bridge">Single-phase H-bridge</option>
+          <option value="npc" data-short="NPC" title="Three-phase, three-level NPC">Three-level NPC</option>
+          <option value="chb" data-short="CHB" title="Three-phase cascaded H-bridge">Cascaded H-bridge</option>
+          <option value="fc" data-short="FC" title="Three-phase flying capacitor">Flying capacitor</option>
+        </select>
+        <div class="seg" data-select="topo" aria-label="Topology"></div>
+      </div>
+      <div class="ctl" data-topo="chb">
+        <div class="lbl">Cells per phase</div>
+        <select id="cells" hidden>
+          <option value="1" data-short="1 · 3 lvl">1 cell, 3 levels</option>
+          <option value="2" data-short="2 · 5 lvl" selected>2 cells, 5 levels</option>
+          <option value="3" data-short="3 · 7 lvl">3 cells, 7 levels</option>
+        </select>
+        <div class="seg" data-select="cells"></div>
+      </div>
+      <div class="ctl" data-topo="fc">
+        <div class="lbl">Switch pairs per leg</div>
+        <select id="fcn" hidden>
+          <option value="2" data-short="2 · 3 lvl" selected>2 pairs, 1 flying capacitor, 3 levels</option>
+          <option value="3" data-short="3 · 4 lvl">3 pairs, 2 flying capacitors, 4 levels</option>
+        </select>
+        <div class="seg" data-select="fcn"></div>
+      </div>
+      <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">
+        <div class="lbl">Carriers <button class="tip" data-tip="<p><b>PS</b>, phase-shifted: one full-range carrier per cell, shifted by 180°/N.</p><p><b>PD</b>, phase disposition: level-shifted carriers, all in phase.</p><p><b>POD</b>: carriers above zero in antiphase with those below.</p><p><b>APOD</b>: adjacent carriers alternate in phase.</p>"></button></div>
+        <select id="arr" hidden>
+          <option value="ps" data-short="PS">Phase-shifted</option>
+          <option value="pd" data-short="PD" selected>Phase disposition</option>
+          <option value="pod" data-short="POD">Phase opposition disposition</option>
+          <option value="apod" data-short="APOD">Alternative phase opposition</option>
+        </select>
+        <div class="seg" data-select="arr"></div>
+      </div>
+      <div class="ctl" data-topo="hb">
+        <div class="lbl">Switching <button class="tip" data-tip="<p><b>Bipolar</b>: leg b is the inverse of leg a, so v<sub>ab</sub> has two levels, ±2V<sub>dc</sub>.</p><p><b>Unipolar</b>: leg b compares −v* with the same carrier, giving three levels and the first harmonic group at 2p.</p>"></button></div>
+        <select id="hbmod" hidden>
+          <option value="bip" data-short="Bipolar">Bipolar</option>
+          <option value="uni" data-short="Unipolar" selected>Unipolar</option>
+        </select>
+        <div class="seg" data-select="hbmod"></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-strat">
+      <div class="card-h"><h2 id="h-strat">Modulation</h2><button class="tip" id="stratTip" aria-label="About this method"></button></div>
+      <div class="ctl">
+        <label class="lbl" for="strat">Method</label>
+        <select id="strat">
+          <optgroup label="Carrier-based">
+            <option value="spwm">Sine PWM</option>
+            <option value="thi">Sine PWM + 1/6 third harmonic</option>
+            <option value="svm">SVM (min–max zero sequence)</option>
+            <option value="dpwm1">Discontinuous PWM (DPWM1)</option>
+          </optgroup>
+          <optgroup label="Programmed">
+            <option value="sixstep">Six-step</option>
+            <option value="she">Selective harmonic elimination</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <div class="lbl">Carrier <button class="tip" data-tip="<p><b>Triangle</b>: both pulse edges are modulated (double-edge).</p><p><b>Sawtooth</b>: only one edge is modulated (single-edge); rising modulates the trailing edge, falling the leading edge.</p>"></button></div>
+        <select id="carrier" hidden>
+          <option value="tri" data-short="Triangle">Triangle</option>
+          <option value="sawr" data-short="Saw ↗">Sawtooth, rising</option>
+          <option value="sawf" data-short="Saw ↘">Sawtooth, falling</option>
+        </select>
+        <div class="seg" data-select="carrier"></div>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <div class="lbl">Sampling <button class="tip" data-tip="<p><b>Natural</b>: the continuous reference is compared with the carrier.</p><p><b>Symmetrical</b> regular: sampled once per carrier period and held.</p><p><b>Asymmetrical</b> regular: sampled at both carrier peaks, as in the lab converter.</p>"></button></div>
+        <select id="samp" hidden>
+          <option value="nat" data-short="Natural">Natural</option>
+          <option value="sym" data-short="Sym.">Regular, symmetrical</option>
+          <option value="asym" data-short="Asym.">Regular, asymmetrical</option>
+        </select>
+        <div class="seg" data-select="samp"></div>
+      </div>
+      <div class="ctl" data-for="she">
+        <div class="lbl">Angles per quarter period <button class="tip" data-tip="N angles set the fundamental and remove the first N − 1 non-triplen harmonics: 3 angles remove 5 and 7, 5 angles add 11 and 13, 7 angles reach the 19th."></button></div>
+        <select id="nshe" hidden>
+          <option value="1">1</option><option value="3">3</option><option value="5" selected>5</option><option value="7">7</option>
+        </select>
+        <div class="seg" data-select="nshe"></div>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1 she">
+        <label class="lbl" for="M">Modulation index M <output id="M-out"></output></label>
+        <input type="range" id="M" min="0" max="2" step="0.01" value="0.8">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1">
+        <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
+        <input type="range" id="p" min="3" max="60" step="1" value="21">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1 she">
+        <button type="button" class="btn" id="sweep" aria-pressed="false"></button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-out">
+      <div class="card-h"><h2 id="h-out">Output</h2><button class="tip" id="outTip" aria-label="About the output"></button></div>
+      <div class="ctl">
+        <select id="out" hidden>
+          <option value="vaz" data-short="v<sub>az</sub>" title="Phase voltage to the dc midpoint z">vaz</option>
+          <option value="vab" data-short="v<sub>ab</sub>" title="Line-to-line voltage (load voltage for the H-bridge)">vab</option>
+          <option value="van" data-short="v<sub>an</sub>" title="Load phase voltage">van</option>
+          <option value="ia" data-short="i<sub>a</sub>" title="Load current, R-L load">ia</option>
+        </select>
+        <div class="seg" data-select="out" aria-label="Output quantity"></div>
+      </div>
+      <div class="ctl" id="phi-ctl">
+        <label class="lbl" for="phi"><span>Load angle φ<sub>1</sub></span> <output id="phi-out"></output></label>
+        <input type="range" id="phi" min="0" max="89" step="1" value="70">
+      </div>
+      <dl class="readout" id="readout"></dl>
+      <p class="warn" id="note" role="status"></p>
+    </section>
+  </aside>
+
+  <main class="main">
+    <section class="card" aria-labelledby="h-circ">
+      <div class="card-h"><h2 id="h-circ">Circuit</h2>
+        <button class="tip" data-tip="Ideal switches at the time cursor. Conducting switches are blue; the orange labels give each output level. Drag on the waveforms, use the slider or press Animate to move in time."></button>
+        <div class="tools"><button type="button" class="btn" id="play" aria-pressed="false"></button></div>
+      </div>
+      <div id="circuit" class="circuit"></div>
+      <p class="status" id="circuitStatus" aria-live="off"></p>
+      <label class="lbl" for="cur"><span>Time ω<sub>1</sub>t</span> <output id="cur-out"></output></label>
+      <input type="range" id="cur" min="0" max="359" step="0.5" value="30">
+    </section>
+
+    <section class="card" aria-labelledby="h-time">
+      <div class="card-h"><h2 id="h-time">Waveforms</h2>
+        <button class="tip" data-tip="One fundamental period. Top: references and carriers. Bottom: the switched output with its fundamental (dashed). The dotted line is the time cursor."></button>
+        <div class="tools">
+          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc">All phases</button>
+          <select id="view" hidden>
+            <option value="360" data-short="360°" selected>0 – 360°</option>
+            <option value="180" data-short="180°">0 – 180°</option>
+            <option value="90" data-short="90°">0 – 90°</option>
+          </select>
+          <div class="seg sm" data-select="view" aria-label="Angle range"></div>
+        </div>
+      </div>
+      <canvas class="plot" id="timeCanvas" role="img" aria-label="Carriers and references, and the switched output waveform"></canvas>
+    </section>
+
+    <section class="card" aria-labelledby="h-spec">
+      <div class="card-h"><h2 id="h-spec">Spectrum</h2>
+        <button class="tip" data-tip="Peak harmonic amplitudes of the selected output, per unit of V<sub>dc</sub>. Dashed lines mark the carrier multiples p, 2p, …; × marks harmonics removed by harmonic elimination. Hover a bar to read it."></button>
+        <div class="tools">
+          <button type="button" class="btn" id="scale" aria-pressed="false">dB</button>
+          <select id="hmax" hidden>
+            <option value="auto" data-short="Auto" selected>Auto range</option>
+            <option value="25" data-short="25">h ≤ 25</option>
+            <option value="50" data-short="50">h ≤ 50</option>
+            <option value="100" data-short="100">h ≤ 100</option>
+            <option value="200" data-short="200">h ≤ 200</option>
+          </select>
+          <div class="seg sm" data-select="hmax" aria-label="Highest harmonic"></div>
+          <button type="button" class="btn icon" id="share" aria-label="Copy link to these settings" title="Copy link" data-icon="link"></button>
+        </div>
+      </div>
+      <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
+    </section>
+
+    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc">
+      <div class="card-h"><h2 id="h-sv">Space vectors</h2>
+        <button class="tip" data-tip="<p><b>Left</b>: the vectors the converter can produce. Dot area is proportional to dwell time; the line is the vector at the time cursor.</p><p><b>Right</b>: stator flux ψ = ∫v<sub>αβ</sub> dt. Dashed circles show the fundamental.</p>"></button>
+      </div>
+      <canvas class="plot" id="svCanvas" role="img" aria-label="Voltage vectors used and stator flux trajectory in the alpha-beta plane"></canvas>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  EJ2311 · KTH · Conventions
+  <button class="tip" aria-label="Conventions" data-tip="<p>Units follow Holmes &amp; Lipo: the dc link is 2V<sub>dc</sub> with midpoint z, so every phase output lies between −V<sub>dc</sub> and +V<sub>dc</sub>, and M = 1 gives V<sub>1</sub> = V<sub>dc</sub> in v<sub>az</sub>. In the cascaded H-bridge each cell has V<sub>dc</sub>/N and z is the star point of the strings.</p><p>Harmonic amplitudes are peak values. WTHD0 = √(Σ<sub>n≥2</sub>(V<sub>n</sub>/n)²) divided by the fundamental at M = 1 (V<sub>dc</sub> for phase quantities, √3·V<sub>dc</sub> for three-phase line-to-line, 2V<sub>dc</sub> for the H-bridge); WTHD = WTHD0/M.</p><p>The R-L load impedance is 1 at the fundamental; the three-phase load is star-connected with an isolated neutral. Flux ψ is in per unit of V<sub>dc</sub>/ω<sub>1</sub>. Multilevel carriers are triangular with natural sampling; flying capacitor voltages are assumed constant.</p>"></button>
+</footer>
+
+<script src="../assets/js/fft.js"></script>
+<script src="../assets/js/examples.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/explorer.js"></script>
+</body>
+</html>

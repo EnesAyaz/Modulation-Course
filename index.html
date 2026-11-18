@@ -1,55 +1,1853 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PWM Examples · EJ2311</title>
-  <meta name="description" content="Interactive examples of PWM for power electronic converters: carrier PWM, third-harmonic injection, SVM, harmonic elimination, H-bridge and multilevel modulation, with waveforms, spectra and circuits.">
-  <link rel="stylesheet" href="assets/css/style.css">
+<script>
+(function () {
+  var t = null; try { t = localStorage.getItem('atlas-theme'); } catch (e) {}
+  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PWM Explorer</title>
+<meta name="description" content="Interactive PWM explorer for EJ2311 (KTH): two-level, H-bridge, NPC, cascaded H-bridge and flying capacitor converters with carrier PWM, SVM, DPWM, six-step and harmonic elimination.">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMDRkZWVmIi8+PHN0b3Agb2Zmc2V0PSIuNTUiIHN0b3AtY29sb3I9IiMwMmEyZDAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDUxZDQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI4IiBmaWxsPSJ1cmwoI2cpIi8+PHBhdGggZD0iTTUgMjFoMy41di0xMGgzdjEwaDIuNXYtMTBoNHYxMGgyLjV2LTEwaDN2MTBoMy41IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K">
+<style>
+/* PWM Explorer, Atlas style. Every colour comes from a token so the three themes work. */
+:root {
+  --atlas-cyan: #04deef; --atlas-teal: #02a2d0; --atlas-blue: #0051d4; --atlas-deep: #001a3a;
+  --accent-h: 248; --accent-c: .135; --aura-h: 248; --aura-k: 1;
+  --glass-blur-2: 18px; --glass-blur-3: 28px; --glass-saturation: 1.8;
+  --ease: cubic-bezier(.22,.61,.36,1); --ease-out: cubic-bezier(.16,1,.3,1); --spring: cubic-bezier(.34,1.56,.64,1);
+  --r-1: 8px; --r-2: 12px; --r-3: 16px; --r-4: 22px; --r-pill: 999px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  color-scheme: light;
+  --bg: oklch(98.6% .004 240);
+  --surface: oklch(100% 0 0); --surface-2: oklch(98% .004 240); --surface-3: oklch(96% .006 240);
+  --glass-2: oklch(100% 0 0 / .68); --glass-3: oklch(100% 0 0 / .82);
+  --glass-edge-top: oklch(100% 0 0 / .90); --glass-edge-bottom: oklch(100% 0 0 / .25);
+  --glass-inner-light: oklch(100% 0 0 / .60); --glass-body-shadow: oklch(25% .03 255 / .10);
+  --border: oklch(92% .006 250 / .9); --border-2: oklch(89% .008 250); --border-strong: oklch(84% .01 250);
+  --text: oklch(22% .02 255); --text-2: oklch(46% .014 255); --text-3: oklch(62% .012 255); --text-faint: oklch(74% .01 255);
+  --accent: oklch(58% var(--accent-c) var(--accent-h)); --accent-soft: oklch(95% .04 var(--accent-h));
+  --accent-text: oklch(45% var(--accent-c) var(--accent-h)); --ring: oklch(58% var(--accent-c) var(--accent-h) / .35);
+  --warn-soft: oklch(95% .06 75); --warn-ink: oklch(48% .12 70);
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+  --sh-1: 0 1px 2px oklch(25% .03 255 / .06), 0 1px 1px oklch(25% .03 255 / .04);
+  --sh-2: 0 4px 16px oklch(25% .03 255 / .08), 0 1px 3px oklch(25% .03 255 / .05);
+  --aura-opacity: .62;
+  --aura-1: oklch(95% calc(.09 * var(--aura-k)) var(--aura-h));
+  --aura-2: oklch(96% calc(.075 * var(--aura-k)) calc(var(--aura-h) - 32));
+  --aura-3: oklch(96% calc(.08 * var(--aura-k)) calc(var(--aura-h) + 30));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: oklch(15% .012 260);
+    --surface: oklch(20% .016 260); --surface-2: oklch(23% .016 260); --surface-3: oklch(26% .018 260);
+    --glass-2: oklch(23% .016 260 / .62); --glass-3: oklch(22% .016 260 / .78);
+    --glass-edge-top: oklch(100% .02 255 / .28); --glass-edge-bottom: oklch(100% .02 255 / .06);
+    --glass-inner-light: oklch(100% .02 255 / .12); --glass-body-shadow: oklch(0% 0 0 / .50);
+    --border: oklch(100% 0 0 / .08); --border-2: oklch(100% 0 0 / .12); --border-strong: oklch(100% 0 0 / .18);
+    --text: oklch(95% .008 250); --text-2: oklch(74% .012 255); --text-3: oklch(60% .012 255); --text-faint: oklch(48% .012 255);
+    --accent: oklch(72% calc(var(--accent-c) * 1.05) var(--accent-h)); --accent-soft: oklch(30% .05 var(--accent-h) / .5);
+    --accent-text: oklch(80% var(--accent-c) var(--accent-h)); --ring: oklch(72% var(--accent-c) var(--accent-h) / .4);
+    --warn-soft: oklch(34% .06 75 / .5); --warn-ink: oklch(86% .11 75);
+    --series-1: #6fa8f0; --series-2: #ff9163; --series-3: #4fd3a0; --series-4: #f5c451;
+    --series-5: #f5a3c1; --series-6: #5cc45c; --series-7: #9b8ce8; --series-8: #ff7f7e;
+    --sh-1: 0 1px 2px oklch(0% 0 0 / .30); --sh-2: 0 4px 16px oklch(0% 0 0 / .40), 0 1px 3px oklch(0% 0 0 / .30);
+    --aura-opacity: .5;
+    --aura-1: oklch(38% calc(.11 * var(--aura-k)) var(--aura-h));
+    --aura-2: oklch(34% calc(.09 * var(--aura-k)) calc(var(--aura-h) - 32));
+    --aura-3: oklch(36% calc(.10 * var(--aura-k)) calc(var(--aura-h) + 30));
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(15% .012 260);
+  --surface: oklch(20% .016 260); --surface-2: oklch(23% .016 260); --surface-3: oklch(26% .018 260);
+  --glass-2: oklch(23% .016 260 / .62); --glass-3: oklch(22% .016 260 / .78);
+  --glass-edge-top: oklch(100% .02 255 / .28); --glass-edge-bottom: oklch(100% .02 255 / .06);
+  --glass-inner-light: oklch(100% .02 255 / .12); --glass-body-shadow: oklch(0% 0 0 / .50);
+  --border: oklch(100% 0 0 / .08); --border-2: oklch(100% 0 0 / .12); --border-strong: oklch(100% 0 0 / .18);
+  --text: oklch(95% .008 250); --text-2: oklch(74% .012 255); --text-3: oklch(60% .012 255); --text-faint: oklch(48% .012 255);
+  --accent: oklch(72% calc(var(--accent-c) * 1.05) var(--accent-h)); --accent-soft: oklch(30% .05 var(--accent-h) / .5);
+  --accent-text: oklch(80% var(--accent-c) var(--accent-h)); --ring: oklch(72% var(--accent-c) var(--accent-h) / .4);
+  --warn-soft: oklch(34% .06 75 / .5); --warn-ink: oklch(86% .11 75);
+  --series-1: #6fa8f0; --series-2: #ff9163; --series-3: #4fd3a0; --series-4: #f5c451;
+  --series-5: #f5a3c1; --series-6: #5cc45c; --series-7: #9b8ce8; --series-8: #ff7f7e;
+  --sh-1: 0 1px 2px oklch(0% 0 0 / .30); --sh-2: 0 4px 16px oklch(0% 0 0 / .40), 0 1px 3px oklch(0% 0 0 / .30);
+  --aura-opacity: .5;
+  --aura-1: oklch(38% calc(.11 * var(--aura-k)) var(--aura-h));
+  --aura-2: oklch(34% calc(.09 * var(--aura-k)) calc(var(--aura-h) - 32));
+  --aura-3: oklch(36% calc(.10 * var(--aura-k)) calc(var(--aura-h) + 30));
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font-sans); min-height: 100vh; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+a { color: var(--accent-text); }
+svg.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+sub { font-size: 75%; line-height: 0; }
+
+/* aura */
+.aura { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: var(--aura-opacity); overflow: hidden; }
+.aura b { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(10px); }
+.aura b:nth-child(1) { left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, var(--aura-1), transparent); animation: drift1 26s var(--ease) infinite alternate; }
+.aura b:nth-child(2) { right: -20vmax; top: 10vh; background: radial-gradient(closest-side, var(--aura-2), transparent); animation: drift2 33s var(--ease) infinite alternate; }
+.aura b:nth-child(3) { left: 20vw; bottom: -30vmax; background: radial-gradient(closest-side, var(--aura-3), transparent); animation: drift3 29s var(--ease) infinite alternate; }
+@keyframes drift1 { to { transform: translate3d(8vw, 6vh, 0) scale(1.12); } }
+@keyframes drift2 { to { transform: translate3d(-10vw, 8vh, 0) scale(.92); } }
+@keyframes drift3 { to { transform: translate3d(6vw, -8vh, 0) scale(1.08); } }
+
+/* glass: top bar and tooltip only */
+.glass {
+  background-image: linear-gradient(var(--glass-2), var(--glass-2)),
+    linear-gradient(160deg, var(--glass-edge-top), var(--glass-edge-bottom) 55%, var(--glass-edge-top));
+  background-origin: border-box; background-clip: padding-box, border-box; border: 1px solid transparent;
+  backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur-2)) saturate(var(--glass-saturation));
+  box-shadow: inset 0 1px 0 0 var(--glass-inner-light), 0 8px 32px -8px var(--glass-body-shadow);
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 8px; z-index: 20; margin: 8px 16px 0; min-height: 52px; padding: 8px 12px;
+  border-radius: var(--r-3); display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.topbar .logo { width: 28px; height: 28px; flex: none; display: block; }
+.topbar h1 { margin: 0; font-size: 15.5px; font-weight: 620; letter-spacing: -.005em; white-space: nowrap; }
+.topbar .spacer { flex: 1; }
+.topbar .ex { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.topbar .ex select { width: 260px; max-width: 100%; }
+@media (max-width: 640px) {
+  .topbar .ex { order: 3; flex-basis: 100%; }
+  .topbar .ex select { flex: 1; width: auto; }
+}
+
+/* ---------- layout ---------- */
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; max-width: 1280px; margin: 0 auto; padding: 14px 16px; align-items: start; }
+.layout > * { min-width: 0; }
+.side { position: sticky; top: 72px; max-height: calc(100vh - 80px); overflow-y: auto; display: grid; gap: 14px; padding-bottom: 2px; scrollbar-width: thin; }
+.main { display: grid; gap: 14px; }
+.main > *, .side > * { min-width: 0; }
+@media (max-width: 880px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .side { position: static; max-height: none; overflow: visible; }
+}
+.foot { max-width: 1280px; margin: 0 auto; padding: 4px 16px 24px; color: var(--text-3); font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- cards ---------- */
+.card { padding: 14px 16px; border-radius: var(--r-3); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-1); }
+.card-h { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; min-height: 30px; }
+.card-h h2 { margin: 0; font-size: 11px; font-weight: 640; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.card-h .tools { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* rows */
+.ctl { margin-bottom: 12px; }
+.ctl:last-child { margin-bottom: 0; }
+.lbl { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; font-size: 12.5px; font-weight: 560; color: var(--text-2); }
+.lbl output { margin-left: auto; font: 12.5px var(--font-mono); color: var(--accent-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
+
+select {
+  height: 36px; width: 100%; padding: 0 10px; font: 13px var(--font-sans); color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: var(--r-2);
+}
+select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+
+/* segmented control */
+.seg { display: flex; gap: 2px; padding: 3px; border-radius: var(--r-2); background: var(--surface-3); }
+.seg > button {
+  flex: 1; min-width: 0; height: 28px; padding: 0 8px; border: 0; border-radius: var(--r-1); background: transparent;
+  color: var(--text-2); font: 560 13px var(--font-sans); cursor: pointer; white-space: nowrap;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.seg > button span { pointer-events: none; }
+.seg > button:hover { color: var(--text); }
+.seg > button.on { background: var(--surface); color: var(--text); box-shadow: var(--sh-1); }
+.seg.sm > button { height: 24px; font-size: 12px; padding: 0 7px; }
+
+/* buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 11px;
+  border-radius: var(--r-1); border: 1px solid var(--border-2); background: var(--surface-2); color: var(--text);
+  font: 560 13px var(--font-sans); cursor: pointer; white-space: nowrap; transition: transform .12s var(--spring), background .15s var(--ease);
+}
+.btn:hover { border-color: var(--border-strong); }
+.btn:active { transform: scale(.975); }
+.btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+.btn.icon { width: 30px; padding: 0; }
+
+/* (i) button and tooltip */
+.tip {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text-3); cursor: help; flex: none;
+}
+.tip svg.i { width: 14px; height: 14px; }
+.tip:hover, .tip[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent-text); }
+#tipBubble {
+  position: fixed; z-index: 50; max-width: min(440px, 100vw - 24px); padding: 10px 12px; border-radius: var(--r-2);
+  font-size: 12.5px; line-height: 1.55; color: var(--text); box-shadow: var(--sh-2), inset 0 1px 0 0 var(--glass-inner-light);
+  background-image: linear-gradient(var(--glass-3), var(--glass-3)),
+    linear-gradient(160deg, var(--glass-edge-top), var(--glass-edge-bottom) 55%, var(--glass-edge-top));
+}
+#tipBubble b { font-weight: 640; }
+#tipBubble p { margin: 0 0 .5em; }
+#tipBubble p:last-child { margin: 0; }
+
+/* warning badge */
+.warn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 10px; border-radius: var(--r-pill);
+  background: var(--warn-soft); color: var(--warn-ink); font-size: 12.5px; font-weight: 560; }
+.warn:empty { display: none; }
+
+/* measurement list */
+.readout { margin: 10px 0 0; padding: 4px 10px; border-radius: var(--r-2); background: var(--surface-2); }
+.readout > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.readout > div:first-child { border-top: 0; }
+.readout dt { font-size: 12.5px; color: var(--text-2); }
+.readout dd { margin: 0 0 0 auto; font: 13px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* plots */
+canvas.plot { display: block; width: 100%; touch-action: pan-y; }
+#timeCanvas { height: 360px; cursor: col-resize; }
+#specCanvas { height: 280px; cursor: crosshair; }
+#svCanvas { height: 290px; }
+@media (max-width: 520px) { #svCanvas { height: 200px; } #timeCanvas { height: 320px; } }
+
+/* circuit */
+.circuit { overflow-x: auto; }
+.circuit svg { display: block; width: 100%; height: auto; max-height: 330px; margin: 0 auto; }
+@media (max-width: 600px) { .circuit svg { min-width: 540px; max-height: none; } }
+.status { margin: 6px 0 10px; font-size: 12.5px; color: var(--text-2); }
+.sch-w { stroke: var(--text-3); stroke-width: 1.4; fill: none; }
+.sch-p { stroke: var(--text); stroke-width: 2.4; }
+.sch-on { stroke: var(--series-1); stroke-width: 3.4; stroke-linecap: round; }
+.sch-off { stroke: var(--text-faint); stroke-width: 2; stroke-linecap: round; }
+.sch-c { fill: var(--surface); stroke: var(--text-3); stroke-width: 1.2; }
+.sch-dot, .sch-d { fill: var(--text-3); }
+.sch-r { fill: var(--surface); stroke: var(--text-3); stroke-width: 1.4; }
+.sch-t { fill: var(--text-3); font: 12px var(--font-sans); }
+.sch-s { fill: var(--text-3); font: 11px var(--font-sans); }
+.sch-l { fill: var(--text); font: 600 14px var(--font-sans); }
+.sch-v { fill: var(--series-2); font: 600 12px var(--font-sans); }
+.sch-sub { font-size: 75%; }
+
+@media (prefers-reduced-motion: reduce) { .aura b { animation: none; } * { transition: none !important; } }
+@media (prefers-reduced-transparency: reduce) {
+  .aura { display: none; }
+  .glass, #tipBubble { background: var(--surface); background-image: none; border: 1px solid var(--border); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+</style>
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap">
-      <a class="brand" href="index.html">EJ2311 Modulation</a>
-      <nav aria-label="Main">
-        <a href="index.html" aria-current="page">Examples</a>
-        <a href="explorer.html">PWM Explorer</a>
-      </nav>
-    </div>
-  </header>
+<div class="aura" aria-hidden="true"><b></b><b></b><b></b></div>
 
-  <main class="wrap">
-    <h1>Modulation of power electronic converters</h1>
-    <p>Interactive visualisations for EJ2311 at KTH. Each example opens the <a href="explorer.html">PWM Explorer</a> with the
-      settings from a lecture, computer assignment or lab task. You see the converter circuit with its switch states,
-      the switched waveform, the harmonic spectrum and the space vectors, and you can change any parameter from there.</p>
-    <p class="muted">Converters: three-phase two-level, single-phase H-bridge, three-level NPC, cascaded H-bridge and flying capacitor.
-      Methods: sine PWM, third-harmonic injection, SVM, DPWM1, six-step and selective harmonic elimination.</p>
+<header class="topbar glass">
+  <img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMDRkZWVmIi8+PHN0b3Agb2Zmc2V0PSIuNTUiIHN0b3AtY29sb3I9IiMwMmEyZDAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDUxZDQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHJ4PSI4IiBmaWxsPSJ1cmwoI2cpIi8+PHBhdGggZD0iTTUgMjFoMy41di0xMGgzdjEwaDIuNXYtMTBoNHYxMGgyLjV2LTEwaDN2MTBoMy41IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K" alt="">
+  <h1>PWM Explorer</h1>
+  <button class="tip" aria-label="About this page" data-tip="<p><b>PWM Explorer</b> for EJ2311 <i>Modulation of Power Electronic Converters</i>, KTH.</p><p>Pick an example, or choose a converter and a modulation method yourself. The circuit, the waveforms, the harmonic spectrum and the space vectors update together.</p><p>One fundamental period is computed at 16 384 points, so the FFT bins are exactly the harmonic orders. Every setting is kept in the address, so a copied link reopens the same case.</p>"></button>
+  <span class="spacer"></span>
+  <div class="ex">
+    <label for="example" hidden>Example</label>
+    <select id="example"><option value="">Examples…</option></select>
+    <button class="tip" id="exTip" aria-label="About this example" hidden></button>
+  </div>
+  <div class="seg sm" id="themeSeg" aria-label="Theme"></div>
+</header>
 
-    <div id="gallery"></div>
-    <noscript><p>The examples need JavaScript. Open the <a href="explorer.html">PWM Explorer</a> directly.</p></noscript>
+<div class="layout">
+  <aside class="side">
+    <section class="card" aria-labelledby="h-conv">
+      <div class="card-h"><h2 id="h-conv">Converter</h2><button class="tip" id="topoTip" aria-label="About this converter"></button></div>
+      <div class="ctl">
+        <select id="topo" hidden>
+          <option value="2l" data-short="2L" title="Three-phase, two-level">Three-phase, two-level</option>
+          <option value="hb" data-short="HB" title="Single-phase H-bridge">Single-phase H-bridge</option>
+          <option value="npc" data-short="NPC" title="Three-phase, three-level NPC">Three-level NPC</option>
+          <option value="chb" data-short="CHB" title="Three-phase cascaded H-bridge">Cascaded H-bridge</option>
+          <option value="fc" data-short="FC" title="Three-phase flying capacitor">Flying capacitor</option>
+        </select>
+        <div class="seg" data-select="topo" aria-label="Topology"></div>
+      </div>
+      <div class="ctl" data-topo="chb">
+        <div class="lbl">Cells per phase</div>
+        <select id="cells" hidden>
+          <option value="1" data-short="1 · 3 lvl">1 cell, 3 levels</option>
+          <option value="2" data-short="2 · 5 lvl" selected>2 cells, 5 levels</option>
+          <option value="3" data-short="3 · 7 lvl">3 cells, 7 levels</option>
+        </select>
+        <div class="seg" data-select="cells"></div>
+      </div>
+      <div class="ctl" data-topo="fc">
+        <div class="lbl">Switch pairs per leg</div>
+        <select id="fcn" hidden>
+          <option value="2" data-short="2 · 3 lvl" selected>2 pairs, 1 flying capacitor, 3 levels</option>
+          <option value="3" data-short="3 · 4 lvl">3 pairs, 2 flying capacitors, 4 levels</option>
+        </select>
+        <div class="seg" data-select="fcn"></div>
+      </div>
+      <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">
+        <div class="lbl">Carriers <button class="tip" data-tip="<p><b>PS</b>, phase-shifted: one full-range carrier per cell, shifted by 180°/N.</p><p><b>PD</b>, phase disposition: level-shifted carriers, all in phase.</p><p><b>POD</b>: carriers above zero in antiphase with those below.</p><p><b>APOD</b>: adjacent carriers alternate in phase.</p>"></button></div>
+        <select id="arr" hidden>
+          <option value="ps" data-short="PS">Phase-shifted</option>
+          <option value="pd" data-short="PD" selected>Phase disposition</option>
+          <option value="pod" data-short="POD">Phase opposition disposition</option>
+          <option value="apod" data-short="APOD">Alternative phase opposition</option>
+        </select>
+        <div class="seg" data-select="arr"></div>
+      </div>
+      <div class="ctl" data-topo="hb">
+        <div class="lbl">Switching <button class="tip" data-tip="<p><b>Bipolar</b>: leg b is the inverse of leg a, so v<sub>ab</sub> has two levels, ±2V<sub>dc</sub>.</p><p><b>Unipolar</b>: leg b compares −v* with the same carrier, giving three levels and the first harmonic group at 2p.</p>"></button></div>
+        <select id="hbmod" hidden>
+          <option value="bip" data-short="Bipolar">Bipolar</option>
+          <option value="uni" data-short="Unipolar" selected>Unipolar</option>
+        </select>
+        <div class="seg" data-select="hbmod"></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-strat">
+      <div class="card-h"><h2 id="h-strat">Modulation</h2><button class="tip" id="stratTip" aria-label="About this method"></button></div>
+      <div class="ctl">
+        <label class="lbl" for="strat">Method</label>
+        <select id="strat">
+          <optgroup label="Carrier-based">
+            <option value="spwm">Sine PWM</option>
+            <option value="thi">Sine PWM + 1/6 third harmonic</option>
+            <option value="svm">SVM (min–max zero sequence)</option>
+            <option value="dpwm1">Discontinuous PWM (DPWM1)</option>
+          </optgroup>
+          <optgroup label="Programmed">
+            <option value="sixstep">Six-step</option>
+            <option value="she">Selective harmonic elimination</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <div class="lbl">Carrier <button class="tip" data-tip="<p><b>Triangle</b>: both pulse edges are modulated (double-edge).</p><p><b>Sawtooth</b>: only one edge is modulated (single-edge); rising modulates the trailing edge, falling the leading edge.</p>"></button></div>
+        <select id="carrier" hidden>
+          <option value="tri" data-short="Triangle">Triangle</option>
+          <option value="sawr" data-short="Saw ↗">Sawtooth, rising</option>
+          <option value="sawf" data-short="Saw ↘">Sawtooth, falling</option>
+        </select>
+        <div class="seg" data-select="carrier"></div>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <div class="lbl">Sampling <button class="tip" data-tip="<p><b>Natural</b>: the continuous reference is compared with the carrier.</p><p><b>Symmetrical</b> regular: sampled once per carrier period and held.</p><p><b>Asymmetrical</b> regular: sampled at both carrier peaks, as in the lab converter.</p>"></button></div>
+        <select id="samp" hidden>
+          <option value="nat" data-short="Natural">Natural</option>
+          <option value="sym" data-short="Sym.">Regular, symmetrical</option>
+          <option value="asym" data-short="Asym.">Regular, asymmetrical</option>
+        </select>
+        <div class="seg" data-select="samp"></div>
+      </div>
+      <div class="ctl" data-for="she">
+        <div class="lbl">Angles per quarter period <button class="tip" data-tip="N angles set the fundamental and remove the first N − 1 non-triplen harmonics: 3 angles remove 5 and 7, 5 angles add 11 and 13, 7 angles reach the 19th."></button></div>
+        <select id="nshe" hidden>
+          <option value="1">1</option><option value="3">3</option><option value="5" selected>5</option><option value="7">7</option>
+        </select>
+        <div class="seg" data-select="nshe"></div>
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1 she">
+        <label class="lbl" for="M">Modulation index M <output id="M-out"></output></label>
+        <input type="range" id="M" min="0" max="2" step="0.01" value="0.8">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1">
+        <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
+        <input type="range" id="p" min="3" max="60" step="1" value="21">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1 she">
+        <button type="button" class="btn" id="sweep" aria-pressed="false"></button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-out">
+      <div class="card-h"><h2 id="h-out">Output</h2><button class="tip" id="outTip" aria-label="About the output"></button></div>
+      <div class="ctl">
+        <select id="out" hidden>
+          <option value="vaz" data-short="v<sub>az</sub>" title="Phase voltage to the dc midpoint z">vaz</option>
+          <option value="vab" data-short="v<sub>ab</sub>" title="Line-to-line voltage (load voltage for the H-bridge)">vab</option>
+          <option value="van" data-short="v<sub>an</sub>" title="Load phase voltage">van</option>
+          <option value="ia" data-short="i<sub>a</sub>" title="Load current, R-L load">ia</option>
+        </select>
+        <div class="seg" data-select="out" aria-label="Output quantity"></div>
+      </div>
+      <div class="ctl" id="phi-ctl">
+        <label class="lbl" for="phi"><span>Load angle φ<sub>1</sub></span> <output id="phi-out"></output></label>
+        <input type="range" id="phi" min="0" max="89" step="1" value="70">
+      </div>
+      <dl class="readout" id="readout"></dl>
+      <p class="warn" id="note" role="status"></p>
+    </section>
+  </aside>
+
+  <main class="main">
+    <section class="card" aria-labelledby="h-circ">
+      <div class="card-h"><h2 id="h-circ">Circuit</h2>
+        <button class="tip" data-tip="Ideal switches at the time cursor. Conducting switches are blue; the orange labels give each output level. Drag on the waveforms, use the slider or press Animate to move in time."></button>
+        <div class="tools"><button type="button" class="btn" id="play" aria-pressed="false"></button></div>
+      </div>
+      <div id="circuit" class="circuit"></div>
+      <p class="status" id="circuitStatus" aria-live="off"></p>
+      <label class="lbl" for="cur"><span>Time ω<sub>1</sub>t</span> <output id="cur-out"></output></label>
+      <input type="range" id="cur" min="0" max="359" step="0.5" value="30">
+    </section>
+
+    <section class="card" aria-labelledby="h-time">
+      <div class="card-h"><h2 id="h-time">Waveforms</h2>
+        <button class="tip" data-tip="One fundamental period. Top: references and carriers. Bottom: the switched output with its fundamental (dashed). The dotted line is the time cursor."></button>
+        <div class="tools">
+          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc">All phases</button>
+          <select id="view" hidden>
+            <option value="360" data-short="360°" selected>0 – 360°</option>
+            <option value="180" data-short="180°">0 – 180°</option>
+            <option value="90" data-short="90°">0 – 90°</option>
+          </select>
+          <div class="seg sm" data-select="view" aria-label="Angle range"></div>
+        </div>
+      </div>
+      <canvas class="plot" id="timeCanvas" role="img" aria-label="Carriers and references, and the switched output waveform"></canvas>
+    </section>
+
+    <section class="card" aria-labelledby="h-spec">
+      <div class="card-h"><h2 id="h-spec">Spectrum</h2>
+        <button class="tip" data-tip="Peak harmonic amplitudes of the selected output, per unit of V<sub>dc</sub>. Dashed lines mark the carrier multiples p, 2p, …; × marks harmonics removed by harmonic elimination. Hover a bar to read it."></button>
+        <div class="tools">
+          <button type="button" class="btn" id="scale" aria-pressed="false">dB</button>
+          <select id="hmax" hidden>
+            <option value="auto" data-short="Auto" selected>Auto range</option>
+            <option value="25" data-short="25">h ≤ 25</option>
+            <option value="50" data-short="50">h ≤ 50</option>
+            <option value="100" data-short="100">h ≤ 100</option>
+            <option value="200" data-short="200">h ≤ 200</option>
+          </select>
+          <div class="seg sm" data-select="hmax" aria-label="Highest harmonic"></div>
+          <button type="button" class="btn icon" id="share" aria-label="Copy link to these settings" title="Copy link" data-icon="link"></button>
+        </div>
+      </div>
+      <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
+    </section>
+
+    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc">
+      <div class="card-h"><h2 id="h-sv">Space vectors</h2>
+        <button class="tip" data-tip="<p><b>Left</b>: the vectors the converter can produce. Dot area is proportional to dwell time; the line is the vector at the time cursor.</p><p><b>Right</b>: stator flux ψ = ∫v<sub>αβ</sub> dt. Dashed circles show the fundamental.</p>"></button>
+      </div>
+      <canvas class="plot" id="svCanvas" role="img" aria-label="Voltage vectors used and stator flux trajectory in the alpha-beta plane"></canvas>
+    </section>
   </main>
+</div>
 
-  <footer class="site-footer"><div class="wrap">EJ2311 Modulation of Power Electronic Converters · KTH</div></footer>
+<footer class="foot">
+  EJ2311 · KTH · Conventions
+  <button class="tip" aria-label="Conventions" data-tip="<p>Units follow Holmes &amp; Lipo: the dc link is 2V<sub>dc</sub> with midpoint z, so every phase output lies between −V<sub>dc</sub> and +V<sub>dc</sub>, and M = 1 gives V<sub>1</sub> = V<sub>dc</sub> in v<sub>az</sub>. In the cascaded H-bridge each cell has V<sub>dc</sub>/N and z is the star point of the strings.</p><p>Harmonic amplitudes are peak values. WTHD0 = √(Σ<sub>n≥2</sub>(V<sub>n</sub>/n)²) divided by the fundamental at M = 1 (V<sub>dc</sub> for phase quantities, √3·V<sub>dc</sub> for three-phase line-to-line, 2V<sub>dc</sub> for the H-bridge); WTHD = WTHD0/M.</p><p>The R-L load impedance is 1 at the fundamental; the three-phase load is star-connected with an isolated neutral. Flux ψ is in per unit of V<sub>dc</sub>/ω<sub>1</sub>. Multilevel carriers are triangular with natural sampling; flying capacitor voltages are assumed constant.</p>"></button>
+</footer>
 
-  <script src="assets/js/examples.js"></script>
-  <script>
-    (function () {
-      const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const sub = (s) => esc(s).replace(/_(\w+)/g, '<sub>$1</sub>');
-      const root = document.getElementById('gallery');
-      for (const g of window.PWM_EXAMPLES) {
-        const sec = document.createElement('section');
-        sec.className = 'ex-group';
-        const cards = g.items.map((it) => {
-          const q = new URLSearchParams(Object.entries(it.cfg).map(([k, v]) => [k, String(v)]));
-          q.set('ex', it.id);
-          return `<a class="card" href="explorer.html#${q.toString()}"><h3>${esc(it.title)}</h3><p>${sub(it.text)}</p><span class="open">Open in explorer →</span></a>`;
-        }).join('');
-        sec.innerHTML = `<h2>${esc(g.group)}</h2><p class="src muted">${esc(g.source)}</p><div class="cards">${cards}</div>`;
-        root.appendChild(sec);
+<script>
+/* Radix-2 in-place FFT, shared by the demos.
+   const fft = new FFT(1024); fft.forward(re, im); fft.inverse(re, im); */
+(function (global) {
+  'use strict';
+
+  function FFT(n) {
+    if (n < 2 || (n & (n - 1)) !== 0) throw new Error('FFT size must be a power of two');
+    this.n = n;
+    this.cos = new Float64Array(n / 2);
+    this.sin = new Float64Array(n / 2);
+    for (let i = 0; i < n / 2; i++) {
+      this.cos[i] = Math.cos((2 * Math.PI * i) / n);
+      this.sin[i] = Math.sin((2 * Math.PI * i) / n);
+    }
+    this.rev = new Uint32Array(n);
+    const bits = Math.log2(n);
+    for (let i = 0; i < n; i++) {
+      let r = 0;
+      for (let b = 0; b < bits; b++) r |= ((i >>> b) & 1) << (bits - 1 - b);
+      this.rev[i] = r >>> 0;
+    }
+  }
+
+  FFT.prototype.forward = function (re, im) {
+    const n = this.n, rev = this.rev, cos = this.cos, sin = this.sin;
+    for (let i = 0; i < n; i++) {
+      const j = rev[i];
+      if (j > i) {
+        let t = re[i]; re[i] = re[j]; re[j] = t;
+        t = im[i]; im[i] = im[j]; im[j] = t;
       }
-    })();
-  </script>
+    }
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let start = 0; start < n; start += size) {
+        for (let k = 0, tw = 0; k < half; k++, tw += step) {
+          const a = start + k, b = a + half;
+          const wr = cos[tw], wi = -sin[tw];
+          const xr = re[b] * wr - im[b] * wi;
+          const xi = re[b] * wi + im[b] * wr;
+          re[b] = re[a] - xr; im[b] = im[a] - xi;
+          re[a] += xr; im[a] += xi;
+        }
+      }
+    }
+  };
+
+  FFT.prototype.inverse = function (re, im) {
+    const n = this.n;
+    this.forward(im, re); // swapping the roles of re/im conjugates the transform
+    for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+  };
+
+  global.FFT = FFT;
+})(window);
+</script>
+<script>
+/* Example cases from the EJ2311 lectures, computer assignments and lab.
+   Used by the gallery (index.html) and the example picker in the explorer.
+   cfg keys are explorer control ids; anything left out takes the explorer default. */
+window.PWM_EXAMPLES = [
+  {
+    group: 'One phase leg',
+    source: 'Lectures 1–2, computer assignment 1',
+    items: [
+      { id: 'sixstep', title: 'Six-step square wave',
+        text: 'Each leg is a square wave. v_az contains every odd harmonic with amplitude 4/(hπ)·Vdc. Switch the output to v_ab: the triplen harmonics cancel and only h = 6k ± 1 remain.',
+        cfg: { topo: '2l', strat: 'sixstep', out: 'vaz', hmax: '50' } },
+      { id: 'ca1-saw', title: 'Sawtooth carrier (CA1)',
+        text: 'Computer assignment 1 settings: single-edge modulation with M = 0.75 and p = 11. Every carrier multiple mp has sidebands on both sides, with amplitudes set by Bessel functions. Compare the bars with your analytical spectrum.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.75, p: 11, out: 'vaz', hmax: '50' } },
+      { id: 'tri-nat', title: 'Triangle carrier, natural sampling',
+        text: 'Double-edge modulation, p = 15, M = 0.8. Around odd carrier multiples (15, 45) only even-offset sidebands appear; around even multiples (30, 60) only odd-offset sidebands. There are no baseband harmonics.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vaz' } },
+      { id: 'tri-sym', title: 'Regular sampling, symmetrical',
+        text: 'The reference is sampled once per carrier period and held. Small baseband harmonics appear and the sidebands change. Compare with natural sampling at the same M and p.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'sym', M: 0.8, p: 15, out: 'vaz' } },
+      { id: 'tri-asym', title: 'Regular sampling, asymmetrical',
+        text: 'The reference is sampled at both carrier peaks, so each edge uses its own sample. Baseband harmonics are smaller than with symmetrical sampling. The lab converter uses this method.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 15, out: 'vaz' } },
+      { id: 'overmod', title: 'Overmodulation',
+        text: 'With M > 1 the reference leaves the carrier band and pulses are dropped near the peaks. Low-order harmonics 3, 5, 7 … appear and the fundamental grows more slowly than M. Press Sweep M to watch it happen.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 1.4, p: 21, out: 'vaz' } },
+    ],
+  },
+  {
+    group: 'Single-phase H-bridge',
+    source: 'Lecture 2',
+    items: [
+      { id: 'hb-bip', title: 'Bipolar switching',
+        text: 'Both legs switch together (v_bz = −v_az), so v_ab jumps between +2Vdc and −2Vdc. The spectrum is the single-leg spectrum doubled, with the first harmonic group around p.',
+        cfg: { topo: 'hb', hbmod: 'bip', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
+      { id: 'hb-uni', title: 'Unipolar switching',
+        text: 'Leg b compares −v* with the same carrier. In v_ab the groups around p, 3p, … cancel, the output has three levels and the first harmonic group moves to 2p. Show v_az to see that each leg still has them.',
+        cfg: { topo: 'hb', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
+    ],
+  },
+  {
+    group: 'Three-phase, two-level',
+    source: 'Lecture 3, lab',
+    items: [
+      { id: 'line', title: 'Line-to-line voltage',
+        text: 'The carrier harmonics (h = p, 2p, …) and the sidebands whose offset is a multiple of 3 are the same in all three legs, so they cancel in v_ab. Switch between v_az and v_ab to compare.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
+      { id: 'thi', title: 'Third-harmonic injection, M = 1.15',
+        text: 'Adding −(M/6)·cos 3θ flattens the reference so it stays inside the carrier up to M = 2/√3 ≈ 1.155. The third harmonic is common mode and does not appear in v_ab.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'nat', M: 1.15, p: 21, out: 'vab' } },
+      { id: 'svm', title: 'SVM (centred zero vectors), M = 1.15',
+        text: 'The zero sequence −(max + min)/2 centres the zero vectors 000 and 111 in every half carrier period. Same linear range as third-harmonic injection, with slightly lower WTHD0.',
+        cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'nat', M: 1.15, p: 21, out: 'vab' } },
+      { id: 'lab-thi9', title: 'Lab: +1/6 injection, M = 1.15, p = 9',
+        text: 'The lab reference spectra compare third-harmonic injection and SVM at a low pulse number. The lab sheet gives WTHD0 = 5.11 %; the explorer gives 5.09 %. Compare with the SVM case.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 1.15, p: 9, out: 'vab' } },
+      { id: 'lab-svm9', title: 'Lab: SVM, M = 1.15, p = 9',
+        text: 'Same M and p as the previous case with the SVM zero sequence. Centring the zero vectors lowers WTHD0: the lab sheet gives 4.94 %, the explorer 4.93 %.',
+        cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'asym', M: 1.15, p: 9, out: 'vab' } },
+      { id: 'dpwm1', title: 'Discontinuous PWM (DPWM1)',
+        text: 'Each phase is clamped to a dc rail for 60° around its positive and negative peaks, so each leg switches only 2/3 as often. Compare the commutation count with sine PWM at the same p.',
+        cfg: { topo: '2l', strat: 'dpwm1', carrier: 'tri', samp: 'sym', M: 1, p: 24, out: 'vab' } },
+      { id: 'cur9', title: 'Phase current, p = 9 (lab 3.1)',
+        text: 'The R-L load attenuates each voltage harmonic by about 1/h, so the current is much smoother than the voltage. At a low pulse number the ripple is still clearly visible.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 9, out: 'ia' } },
+      { id: 'cur39', title: 'Phase current, p = 39 (lab 3.1)',
+        text: 'Same load as at p = 9. The harmonic groups move up to h ≈ 39 and 78, where the load impedance is high, so the current is almost sinusoidal.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 39, out: 'ia' } },
+      { id: 'flux-six', title: 'Stator flux, six-step (lab 3.4)',
+        text: 'Only the six active vectors are used, each for 60°. The flux ψ = ∫v dt moves along a hexagon.',
+        cfg: { topo: '2l', strat: 'sixstep', out: 'vab' } },
+      { id: 'flux-pwm', title: 'Stator flux, PWM (lab 3.4)',
+        text: 'Active vectors alternate with zero vectors, which stop the flux. The trajectory follows a circle with a small ripple.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 0.8, p: 22, out: 'vab' } },
+    ],
+  },
+  {
+    group: 'Harmonic elimination',
+    source: 'Lecture 3, computer assignment 2',
+    items: [
+      { id: 'she5', title: 'Two-level, 5 angles',
+        text: 'Five switching angles per quarter period set the fundamental and remove the 5th, 7th, 11th and 13th harmonics (CA2, part b). Triplens remain in v_az but cancel in v_ab. Sweep M to see the angles move.',
+        cfg: { topo: '2l', strat: 'she', nshe: 5, M: 0.8, out: 'vaz', hmax: '50' } },
+      { id: 'she7', title: 'Two-level, 7 angles',
+        text: 'Seven angles remove all non-triplen harmonics from the 5th to the 19th. In v_ab the first remaining harmonics are the 23rd and 25th.',
+        cfg: { topo: '2l', strat: 'she', nshe: 7, M: 0.6, out: 'vab', hmax: '50' } },
+      { id: 'she3l', title: 'Three-level, 5 angles (CA2, part d)',
+        text: 'The phase voltage steps between 0 and ±Vdc only. At M = 0.5 the solver finds the angles given in CA2 (0.8114 … 1.4223 rad). Compare WTHD0 of v_ab with the two-level pattern at the same M.',
+        cfg: { topo: 'npc', strat: 'she', nshe: 5, M: 0.5, out: 'vab', hmax: '50' } },
+    ],
+  },
+  {
+    group: 'Multilevel',
+    source: 'Lecture 5',
+    items: [
+      { id: 'ml2', title: '2 levels, p = 11',
+        text: 'Reference case for the level comparison in lecture 5: M = 0.9, carrier frequency 11·f1, line-to-line voltage.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.9, p: 11, out: 'vab' } },
+      { id: 'ml3', title: '3 levels (NPC), p = 11',
+        text: 'Same carrier frequency, two level-shifted carriers. The steps are half as large and the harmonic amplitudes drop accordingly.',
+        cfg: { topo: 'npc', arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
+      { id: 'ml5', title: '5 levels (cascaded H-bridge), p = 11',
+        text: 'Two cells per phase, four level-shifted carriers in phase (PD). WTHD0 is about half the three-level value.',
+        cfg: { topo: 'chb', cells: 2, arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
+      { id: 'ml7', title: '7 levels (cascaded H-bridge), p = 11',
+        text: 'Three cells per phase; the voltage is close to a staircase sine wave. At this low carrier frequency the outer bands are crossed only briefly, so WTHD0 is no better than with five levels. Raise p and compare again.',
+        cfg: { topo: 'chb', cells: 3, arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
+      { id: 'pd', title: 'Carrier disposition: PD',
+        text: 'All carriers in phase. The phase voltage has a large harmonic exactly at h = p. It is common mode and cancels in v_ab, which is why PD gives the lowest line-to-line distortion.',
+        cfg: { topo: 'chb', cells: 2, arr: 'pd', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'pod', title: 'Carrier disposition: POD',
+        text: 'Carriers above zero are in antiphase with those below. The harmonic at h = p disappears, and its energy moves into sidebands that do not cancel between the phases.',
+        cfg: { topo: 'chb', cells: 2, arr: 'pod', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'apod', title: 'Carrier disposition: APOD',
+        text: 'Adjacent carriers alternate in phase. Compare its sideband pattern with PD and POD at the same M and p.',
+        cfg: { topo: 'chb', cells: 2, arr: 'apod', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'ps', title: 'Phase-shifted carriers (PS)',
+        text: 'Each cell has its own carrier, shifted by 180°/N. The cell harmonics cancel up to h = 2Np, here 40, and every cell switches equally often. Compare the cell commutation counts with PD.',
+        cfg: { topo: 'chb', cells: 2, arr: 'ps', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'fc3', title: 'Flying capacitor, 3 levels',
+        text: 'Two switch pairs per leg and one flying capacitor charged to Vdc. The pairs follow carriers 180° apart, so both switch equally often and the capacitor stays balanced on average. The first harmonic group of v_az is at 2p.',
+        cfg: { topo: 'fc', fcn: 2, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'fc4', title: 'Flying capacitor, 4 levels',
+        text: 'Three switch pairs with carriers 120° apart and two nested flying capacitors (4Vdc/3 and 2Vdc/3). The phase voltage has four levels and the first harmonic group moves to 3p = 30. Animate the circuit to see which pair switches at each step.',
+        cfg: { topo: 'fc', fcn: 3, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+    ],
+  },
+];
+</script>
+<script>
+/* Atlas UI helpers: (i) tooltips, theme switcher, segmented controls backed by hidden <select>s. */
+(function () {
+  'use strict';
+  const ICON = {
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+    pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  };
+  const icon = (name) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
+
+  // ---------- tooltips ----------
+  const bubble = document.createElement('div');
+  bubble.id = 'tipBubble'; bubble.className = 'glass'; bubble.setAttribute('role', 'tooltip'); bubble.hidden = true;
+  document.body.appendChild(bubble);
+  let openBtn = null, pinned = false;
+  function place(btn) {
+    const r = btn.getBoundingClientRect(), b = bubble.getBoundingClientRect(), m = 12;
+    let left = Math.min(Math.max(m, r.left + r.width / 2 - b.width / 2), innerWidth - b.width - m);
+    let top = r.bottom + 8;
+    if (top + b.height > innerHeight - m && r.top - 8 - b.height > m) top = r.top - 8 - b.height;
+    bubble.style.left = left + 'px'; bubble.style.top = Math.max(m, top) + 'px';
+  }
+  function show(btn) {
+    const html = btn.dataset.tip;
+    if (!html) return;
+    if (openBtn && openBtn !== btn) openBtn.setAttribute('aria-expanded', 'false');
+    openBtn = btn; btn.setAttribute('aria-expanded', 'true');
+    bubble.innerHTML = html; bubble.hidden = false;
+    bubble.style.left = '0px'; bubble.style.top = '0px';
+    place(btn);
+  }
+  function hide() {
+    if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
+    openBtn = null; pinned = false; bubble.hidden = true;
+  }
+  function wireTip(btn) {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.type = 'button';
+    btn.innerHTML = icon('info');
+    if (!btn.hasAttribute('aria-label')) btn.setAttribute('aria-label', 'More information');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('mouseenter', () => { if (!pinned) show(btn); });
+    btn.addEventListener('mouseleave', () => { if (!pinned && openBtn === btn) hide(); });
+    btn.addEventListener('focus', () => { if (!pinned) show(btn); });
+    btn.addEventListener('blur', () => { if (!pinned && openBtn === btn) hide(); });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (pinned && openBtn === btn) { hide(); return; }
+      show(btn); pinned = true;
+    });
+  }
+  document.addEventListener('click', (e) => { if (openBtn && !bubble.contains(e.target)) hide(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', () => { if (openBtn) hide(); }, true);
+  window.addEventListener('resize', () => { if (openBtn) hide(); });
+  function setTip(idOrEl, html) {
+    const btn = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+    if (!btn) return;
+    if (btn.dataset.tip === html) return;
+    btn.dataset.tip = html || '';
+    btn.hidden = !html;
+    if (openBtn === btn) { if (html) { bubble.innerHTML = html; place(btn); } else hide(); }
+  }
+
+  // ---------- theme ----------
+  function applyTheme(t) {
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+    try { if (t === 'light' || t === 'dark') localStorage.setItem('atlas-theme', t); else localStorage.removeItem('atlas-theme'); } catch (e) { /* storage blocked */ }
+    document.querySelectorAll('#themeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.theme === (t || 'system')));
+  }
+  function wireTheme() {
+    const seg = document.getElementById('themeSeg');
+    if (!seg) return;
+    const cur = document.documentElement.getAttribute('data-theme') || 'system';
+    seg.innerHTML = [['system', 'monitor', 'System theme'], ['light', 'sun', 'Light theme'], ['dark', 'moon', 'Dark theme']]
+      .map(([t, ic, lab]) => `<button type="button" data-theme="${t}" aria-label="${lab}" title="${lab}" class="${t === cur ? 'on' : ''}">${icon(ic)}</button>`).join('');
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) applyTheme(b.dataset.theme === 'system' ? null : b.dataset.theme); });
+  }
+
+  // ---------- segmented controls ----------
+  // <div class="seg" data-select="id"></div> mirrors <select id="id" hidden>. Option text comes from data-short or the option text.
+  const segs = [];
+  function wireSeg(seg) {
+    const sel = document.getElementById(seg.dataset.select);
+    seg.setAttribute('role', 'group');
+    seg.innerHTML = [...sel.options].map((o) =>
+      `<button type="button" data-v="${o.value}" title="${o.title || o.textContent}"><span>${o.dataset.short || o.textContent}</span></button>`).join('');
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || sel.value === b.dataset.v) return;
+      sel.value = b.dataset.v;
+      sel.dispatchEvent(new Event('input', { bubbles: true }));
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      syncSegs();
+    });
+    segs.push([seg, sel]);
+  }
+  function syncSegs() {
+    for (const [seg, sel] of segs) {
+      const opts = sel.options;
+      seg.querySelectorAll('button').forEach((b, i) => {
+        b.hidden = !!opts[i].hidden;
+        const on = opts[i].value === sel.value;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on);
+      });
+    }
+  }
+
+  // toggle buttons with an icon and a label that changes
+  function setToggle(btn, on, labelOn, labelOff, iconOn, iconOff) {
+    btn.setAttribute('aria-pressed', on);
+    btn.innerHTML = icon(on ? iconOn : iconOff) + `<span>${on ? labelOn : labelOff}</span>`;
+  }
+
+  function init() {
+    document.querySelectorAll('.tip').forEach(wireTip);
+    document.querySelectorAll('.seg[data-select]').forEach(wireSeg);
+    document.querySelectorAll('[data-icon]').forEach((el) => el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon)));
+    wireTheme();
+    syncSegs();
+  }
+  window.AtlasUI = { init, setTip, syncSegs, setToggle, icon };
+})();
+</script>
+<script>
+/* PWM Explorer for EJ2311.
+   One fundamental period is sampled at NS points. Units follow Holmes & Lipo: the dc link is 2Vdc,
+   so every phase output lies in [−Vdc, +Vdc] (per unit of Vdc). Because exactly one period is
+   analysed, the FFT bins are the harmonic orders h = 0, 1, 2, ... with no leakage. */
+(function () {
+  'use strict';
+
+  const NS = 16384;
+  const TWO_PI = 2 * Math.PI;
+  const SQRT3 = Math.sqrt(3);
+  const fft = new FFT(NS);
+  const $ = (id) => document.getElementById(id);
+
+  const CARRIER_BASED = new Set(['spwm', 'thi', 'svm', 'dpwm1']);
+  const LINEAR_LIMIT = { spwm: 1, thi: 2 / SQRT3, svm: 2 / SQRT3, dpwm1: 2 / SQRT3 };
+  const STRATS = {
+    '2l': ['spwm', 'thi', 'svm', 'dpwm1', 'sixstep', 'she'],
+    hb: ['spwm'],
+    npc: ['spwm', 'thi', 'svm', 'she'],
+    chb: ['spwm', 'thi', 'svm'],
+    fc: ['spwm', 'thi', 'svm'],
+  };
+  const ARRS = { npc: ['pd', 'pod'], chb: ['ps', 'pd', 'pod', 'apod'] };
+  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'] };
+  const TOPO_TEXT = {
+    '2l': 'Two switches per leg. Each phase connects to +V<sub>dc</sub> or −V<sub>dc</sub>.',
+    hb: 'Two legs feed one load between a and b. v<sub>ab</sub> = v<sub>az</sub> − v<sub>bz</sub> can take ±2V<sub>dc</sub> and 0.',
+    npc: 'Four switches and two clamp diodes per leg. Each phase connects to +V<sub>dc</sub>, the midpoint z, or −V<sub>dc</sub>.',
+    chb: 'N H-bridge cells in series per phase, each with its own dc source V<sub>dc</sub>/N. 2N + 1 levels per phase.',
+    fc: 'N complementary switch pairs per leg with N − 1 flying capacitors charged to 2V<sub>dc</sub>·k/N. N + 1 levels per phase. Phase-shifted carriers, one per switch pair.',
+  };
+  const DESCRIPTION = {
+    spwm: () => 'v*<sub>x</sub> = M cos(ωt − φ<sub>x</sub>). Linear up to M = 1.',
+    thi: () => 'v*<sub>x</sub> = M cos(ωt − φ<sub>x</sub>) − (M/6) cos 3ωt. Linear up to M = 2/√3 ≈ 1.155.',
+    svm: (t) => 'Adds the zero sequence −(max + min)/2. ' + (t === '2l'
+      ? 'This centres the zero vectors in each carrier period and is equivalent to SVM.'
+      : 'For two levels this is SVM with centred zero vectors.') + ' Linear up to M ≈ 1.155.',
+    dpwm1: () => 'Clamps the phase with the largest |v*| to the dc rail for 60° around its peak. One third fewer commutations. Linear up to M ≈ 1.155.',
+    sixstep: () => 'Each leg is a square wave, giving the largest fundamental, 4/π · V<sub>dc</sub> ≈ 1.27.',
+    she: (t) => t === 'npc'
+      ? 'Three-level, quarter-wave symmetric pattern (0 ↔ ±V<sub>dc</sub>) with N angles. Sets V<sub>1</sub> = M and removes the first N − 1 non-triplen harmonics.'
+      : 'Two-level, quarter-wave symmetric pattern with N angles. Sets V<sub>1</sub> = M and removes the first N − 1 non-triplen harmonics (5, 7, 11, 13, …). Triplens cancel between the phases.',
+  };
+  const OUT_LABEL = { vaz: 'v_az', vab: 'v_ab', van: 'v_an', ia: 'i_a' };
+
+  const DEFAULTS = {
+    topo: '2l', cells: '2', fcn: '2', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
+    M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
+  };
+  const ctlIds = Object.keys(DEFAULTS);
+  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'cur']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
+
+  function params() {
+    const p = {};
+    for (const id of ctlIds) p[id] = numeric.has(id) ? parseFloat($(id).value) : $(id).value;
+    return p;
+  }
+
+  // ---------- buffers ----------
+  const sw = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)];  // phase (or leg) output, −1 … +1
+  const ref = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)]; // references as compared
+  const cars = Array.from({ length: 6 }, () => new Float64Array(NS));            // carriers
+  const cellA = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg A on
+  const cellB = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg B on
+  const y = new Float64Array(NS);       // selected output
+  const fund = new Float64Array(NS);    // its fundamental
+  const re = new Float64Array(NS), im = new Float64Array(NS);
+  const amp = new Float64Array(NS / 2 + 1);
+  const psiA = new Float64Array(NS), psiB = new Float64Array(NS);
+
+  function carrierAt(type, u) { // u in [0, 1): one carrier period, positive peak at u = 0
+    if (type === 'sawr') return 2 * u - 1;
+    if (type === 'sawf') return 1 - 2 * u;
+    return Math.abs(4 * u - 2) - 1;
+  }
+  // comparator; a reference on (or beyond) a rail clamps, avoiding 1-sample glitches where the carrier touches ±1
+  const gt = (r, c) => (r >= 1 - 1e-12 ? 1 : r <= -1 + 1e-12 ? 0 : r > c ? 1 : 0);
+
+  function zeroSequence(strat, a, b, c, M) {
+    switch (strat) {
+      case 'svm': return -(Math.max(a, b, c) + Math.min(a, b, c)) / 2;
+      case 'dpwm1': {
+        const hi = Math.max(a, b, c), lo = Math.min(a, b, c);
+        return Math.abs(hi) >= Math.abs(lo) ? 1 - hi : -1 - lo;
+      }
+      default: return 0;
+    }
+  }
+
+  // ---------- selective harmonic elimination ----------
+  function nonTriplenOdd(count) {
+    const r = [];
+    for (let n = 5; r.length < count; n += 2) if (n % 3) r.push(n);
+    return r;
+  }
+  function solveLinear(A, b) {
+    const n = b.length;
+    for (let c = 0; c < n; c++) {
+      let piv = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+      if (Math.abs(A[piv][c]) < 1e-14) return null;
+      [A[c], A[piv]] = [A[piv], A[c]]; [b[c], b[piv]] = [b[piv], b[c]];
+      for (let r = c + 1; r < n; r++) {
+        const f = A[r][c] / A[c][c];
+        for (let k = c; k < n; k++) A[r][k] -= f * A[c][k];
+        b[r] -= f * b[c];
+      }
+    }
+    const x = new Array(n);
+    for (let r = n - 1; r >= 0; r--) {
+      let s = b[r];
+      for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k];
+      x[r] = s / A[r][r];
+    }
+    return x;
+  }
+  // Two-level: +1 on [0, α1), −1 on [α1, α2), … from the positive peak (cosine frame), quarter-wave symmetric.
+  // a_n = 4/(nπ) [ (−1)^N sin(nπ/2) + 2 Σ_k (−1)^(k+1) sin(n α_k) ]
+  const SHE2 = {
+    coef(n, a) {
+      let s = (a.length % 2 ? -1 : 1) * Math.sin((n * Math.PI) / 2);
+      for (let j = 0; j < a.length; j++) s += 2 * (j % 2 ? -1 : 1) * Math.sin(n * a[j]);
+      return (4 / (n * Math.PI)) * s;
+    },
+    deriv: (n, aj, j) => (8 / Math.PI) * (j % 2 ? -1 : 1) * Math.cos(n * aj),
+    seeds: () => [],
+  };
+  // Three-level: 0 on [0, α1), +1 on [α1, α2), 0 … from the zero crossing (sine frame), quarter-wave symmetric.
+  // b_n = 4/(nπ) Σ_k (−1)^(k+1) cos(n α_k)
+  const SHE3 = {
+    coef(n, a) {
+      let s = 0;
+      for (let j = 0; j < a.length; j++) s += (j % 2 ? -1 : 1) * Math.cos(n * a[j]);
+      return (4 / (n * Math.PI)) * s;
+    },
+    deriv: (n, aj, j) => -(4 / Math.PI) * (j % 2 ? -1 : 1) * Math.sin(n * aj),
+    seeds: (N) => (N === 5 ? [[0.8114, 0.9055, 1.1069, 1.2935, 1.4223]] : []), // CA2 tip, M = 0.5
+  };
+  function newton(S, H, M, guess) {
+    const N = guess.length, a = guess.slice();
+    const resid = () => H.map((n, r) => S.coef(n, a) - (r === 0 ? M : 0));
+    for (let it = 0; it < 80; it++) {
+      const F = resid();
+      if (Math.max(...F.map(Math.abs)) < 1e-11) break;
+      const J = H.map((n) => a.map((aj, j) => S.deriv(n, aj, j)));
+      const d = solveLinear(J, F.map((v) => -v));
+      if (!d) return null;
+      const big = Math.max(...d.map(Math.abs));
+      const k = big > 0.15 ? 0.15 / big : 1; // damped step
+      for (let j = 0; j < N; j++) a[j] += k * d[j];
+    }
+    if (Math.max(...resid().map(Math.abs)) > 1e-8) return null;
+    for (let j = 0; j < N; j++) {
+      const lo = j ? a[j - 1] : 0;
+      if (!(a[j] > lo + 1e-4) || !(a[j] < Math.PI / 2 - 1e-4)) return null;
+    }
+    return a;
+  }
+  const sheCache = new Map(), sheLast = {};
+  function sheSolve(kind, N, M) {
+    const key = kind + N + ':' + M.toFixed(3);
+    if (sheCache.has(key)) return sheCache.get(key);
+    const S = kind === 3 ? SHE3 : SHE2;
+    const H = [1, ...nonTriplenOdd(N - 1)];
+    let rng = 0x2545f491;
+    const rand = () => ((rng = (Math.imul(rng ^ (rng >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0) / 4294967296);
+    const guesses = [];
+    if (sheLast[kind + N]) guesses.push(sheLast[kind + N]);
+    guesses.push(...S.seeds(N));
+    guesses.push(Array.from({ length: N }, (_, j) => ((j + 1) * Math.PI) / (2 * (N + 1))));
+    for (let t = 0; t < 300; t++) guesses.push(Array.from({ length: N }, () => (rand() * Math.PI) / 2).sort((x, z) => x - z));
+    let sol = null;
+    for (const g of guesses) { sol = newton(S, H, M, g); if (sol) break; }
+    if (sol) sheLast[kind + N] = sol;
+    sheCache.set(key, sol);
+    return sol;
+  }
+  function she2Value(x, angles) { // cosine frame
+    x = ((x % TWO_PI) + TWO_PI) % TWO_PI;
+    if (x > Math.PI) x = TWO_PI - x;
+    let sign = 1;
+    if (x > Math.PI / 2) { x = Math.PI - x; sign = -1; }
+    let k = 0;
+    while (k < angles.length && angles[k] <= x) k++;
+    return sign * (k % 2 ? -1 : 1);
+  }
+  function she3Value(x, angles) { // sine frame
+    x = ((x % TWO_PI) + TWO_PI) % TWO_PI;
+    let sign = 1;
+    if (x >= Math.PI) { x -= Math.PI; sign = -1; }
+    if (x > Math.PI / 2) x = Math.PI - x;
+    let k = 0;
+    while (k < angles.length && angles[k] <= x) k++;
+    return sign * (k % 2);
+  }
+
+  // ---------- compute one period ----------
+  function compute(p) {
+    const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
+    const phase = [0, -TWO_PI / 3, TWO_PI / 3];
+    const M = p.M, topo = p.topo, N = p.cells, Nf = p.fcn, fc = topo === 'fc';
+    const threePh = topo !== 'hb';
+    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
+    res.fc = fc;
+    for (let k = 0; k < 3; k++) { ref[k].fill(NaN); }
+
+    if (CARRIER_BASED.has(p.strat)) {
+      const twoLevelCarrier = topo === '2l' || topo === 'hb';
+      const ctype = twoLevelCarrier ? p.carrier : 'tri';
+      let samp = twoLevelCarrier ? p.samp : 'nat';
+      if (samp === 'asym' && ctype !== 'tri') {
+        samp = 'sym';
+        res.info.push('Asymmetrical sampling needs a triangular carrier, so symmetrical sampling is used.');
+      }
+      const ps = topo === 'chb' && p.arr === 'ps';
+      const arr = topo === 'npc' ? (p.arr === 'pod' ? 'pod' : 'pd') : p.arr;
+      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : ps ? N : 2 * N;
+      res.nCars = K; res.ps = ps;
+      const cv = new Float64Array(K);
+      for (let i = 0; i < NS; i++) {
+        const u = (p.p * i) / NS, fu = u - Math.floor(u);
+        if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
+        else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        else if (ps) for (let j = 0; j < N; j++) { const v = u + j / (2 * N); cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        else {
+          const t = carrierAt('tri', fu);
+          for (let j = 0; j < K; j++) {
+            const inv = arr === 'pod' ? j < K / 2 : arr === 'apod' ? j % 2 === 1 : false;
+            cv[j] = -1 + (2 * j + 1 + (inv ? -t : t)) / K;
+          }
+        }
+        for (let j = 0; j < K; j++) cars[j][i] = cv[j];
+        const th = samp === 'nat' ? (TWO_PI * i) / NS
+          : samp === 'sym' ? (TWO_PI * Math.floor(u)) / p.p
+          : (TWO_PI * Math.floor(2 * u)) / (2 * p.p);
+
+        if (topo === 'hb') {
+          const r = M * Math.cos(th);
+          ref[0][i] = r;
+          const sA = 2 * gt(r, cv[0]) - 1;
+          sw[0][i] = sA;
+          if (p.hbmod === 'uni') { ref[1][i] = -r; sw[1][i] = 2 * gt(-r, cv[0]) - 1; } else sw[1][i] = -sA;
+          sw[2][i] = 0;
+          continue;
+        }
+        const a = M * Math.cos(th + phase[0]), b = M * Math.cos(th + phase[1]), cc = M * Math.cos(th + phase[2]);
+        // cosine reference: the injected third harmonic is −(M/6) cos 3θ (flattens the peaks)
+        const z = p.strat === 'thi' ? -(M / 6) * Math.cos(3 * th) : zeroSequence(p.strat, a, b, cc, M);
+        const rr = [a + z, b + z, cc + z];
+        for (let k = 0; k < 3; k++) {
+          const r = rr[k];
+          ref[k][i] = r;
+          if (topo === '2l') sw[k][i] = 2 * gt(r, cv[0]) - 1;
+          else if (topo === 'npc') sw[k][i] = -1 + gt(r, cv[0]) + gt(r, cv[1]);
+          else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
+            let s = 0;
+            for (let j = 0; j < Nf; j++) { const A = gt(r, cv[j]); cellA[k][j][i] = A; s += A; }
+            sw[k][i] = -1 + (2 * s) / Nf;
+          } else {
+            let s = 0;
+            for (let j = 0; j < N; j++) {
+              let A, B;
+              if (ps) { A = gt(r, cv[j]); B = gt(-r, cv[j]); }
+              else { A = gt(r, cv[N + j]); B = 1 - gt(r, cv[N - 1 - j]); }
+              cellA[k][j][i] = A; cellB[k][j][i] = B;
+              s += A - B;
+            }
+            sw[k][i] = s / N;
+          }
+        }
+      }
+      if (p.strat === 'dpwm1' && samp === 'nat')
+        res.info.push('With natural sampling the clamp transitions fall inside carrier periods, so parts of pulses are lost and the fundamental drops. Regular sampling avoids this.');
+      if (M > LINEAR_LIMIT[p.strat] + 1e-9) {
+        res.notes.push(`Overmodulation: M > ${LINEAR_LIMIT[p.strat].toFixed(3)}`);
+        res.info.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped near the peaks and low-order harmonics appear.`);
+      }
+      if (fc) res.info.push(`The switch pairs' carriers are shifted by ${(360 / Nf).toFixed(0)}°, so each pair switches equally and the flying capacitors stay balanced on average (their voltages are assumed constant). The first harmonic group of v_az is at h = ${Nf}p = ${Nf * p.p}.`);
+      if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
+      if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
+    } else if (p.strat === 'sixstep') {
+      for (let i = 0; i < NS; i++) {
+        const th = (TWO_PI * i) / NS;
+        for (let k = 0; k < 3; k++) {
+          const v = Math.cos(th + phase[k]);
+          ref[k][i] = (4 / Math.PI) * v;
+          sw[k][i] = v >= 0 ? 1 : -1;
+        }
+      }
+    } else { // she, two- or three-level
+      const kind = topo === 'npc' ? 3 : 2;
+      const angles = sheSolve(kind, p.nshe, M);
+      res.angles = angles;
+      if (!angles) {
+        res.notes.push(`No solution at M = ${M.toFixed(2)}`);
+        res.info.push(`No switching angles were found for M = ${M.toFixed(2)} with ${p.nshe} angles. Try a smaller M.`);
+        for (let k = 0; k < 3; k++) { sw[k].fill(0); ref[k].fill(0); }
+        res.failed = true;
+        return res;
+      }
+      for (let i = 0; i < NS; i++) {
+        const th = (TWO_PI * i) / NS;
+        for (let k = 0; k < 3; k++) {
+          ref[k][i] = M * Math.cos(th + phase[k]);
+          sw[k][i] = kind === 3 ? she3Value(th + phase[k] + Math.PI / 2, angles) : she2Value(th + phase[k], angles);
+        }
+      }
+      res.eliminated = nonTriplenOdd(p.nshe - 1);
+    }
+
+    // selected output
+    for (let i = 0; i < NS; i++) {
+      const a = sw[0][i], b = sw[1][i], c = sw[2][i];
+      if (!threePh) y[i] = p.out === 'vaz' ? a : a - b;
+      else y[i] = p.out === 'vaz' ? a : p.out === 'vab' ? a - b : a - (a + b + c) / 3;
+    }
+    if (p.out === 'ia') {
+      // i = v / Z(h), Z(h) = cos φ + j h sin φ (|Z| = 1 at the fundamental)
+      re.set(y); im.fill(0);
+      fft.forward(re, im);
+      const cphi = Math.cos((p.phi * Math.PI) / 180), sphi = Math.sin((p.phi * Math.PI) / 180);
+      re[0] = 0; im[0] = 0;
+      for (let h = 1; h <= NS / 2; h++) {
+        const zr = cphi, zi = h * sphi, d = zr * zr + zi * zi;
+        for (const [idx, s] of [[h, 1], [NS - h, -1]]) {
+          if (h === NS / 2 && s === -1) continue;
+          const xr = re[idx], xi = im[idx], zii = s * zi;
+          re[idx] = (xr * zr + xi * zii) / d;
+          im[idx] = (xi * zr - xr * zii) / d;
+        }
+      }
+      fft.inverse(re, im);
+      y.set(re);
+    }
+
+    // spectrum of the selected output
+    re.set(y); im.fill(0);
+    fft.forward(re, im);
+    for (let h = 0; h <= NS / 2; h++) amp[h] = ((h === 0 || h === NS / 2 ? 1 : 2) * Math.hypot(re[h], im[h])) / NS;
+    const r1 = re[1], i1 = im[1];
+    for (let i = 0; i < NS; i++) {
+      const th = (TWO_PI * i) / NS;
+      fund[i] = (2 / NS) * (r1 * Math.cos(th) - i1 * Math.sin(th));
+    }
+
+    // figures of merit
+    let s2 = 0, w2 = 0;
+    for (let h = 2; h <= NS / 2; h++) { s2 += amp[h] * amp[h]; w2 += (amp[h] / h) ** 2; }
+    res.V1 = amp[1];
+    res.thd = Math.sqrt(s2) / amp[1];
+    const base = p.out === 'vab' ? (threePh ? SQRT3 : 2) : 1;
+    res.wthd0 = Math.sqrt(w2) / base;
+    res.wthd = Math.sqrt(w2) / amp[1];
+    const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
+    res.commutations = transitions(sw[0]);
+    if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
+    if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
+
+    // space vectors: v_αβ = 2/3 (v_a + a v_b + a² v_c), flux = ∫ v dθ
+    if (threePh) {
+      const dw = new Map();
+      let pa = 0, pb = 0, ma = 0, mb = 0;
+      const dth = TWO_PI / NS;
+      for (let i = 0; i < NS; i++) {
+        const a = sw[0][i], b = sw[1][i], c = sw[2][i];
+        const va = (2 / 3) * (a - 0.5 * b - 0.5 * c), vb = (b - c) / SQRT3;
+        pa += va * dth; pb += vb * dth;
+        psiA[i] = pa; psiB[i] = pb; ma += pa; mb += pb;
+        const key = Math.round(va * 1e4) + ',' + Math.round(vb * 1e4);
+        const e = dw.get(key);
+        if (e) e.d += 1 / NS; else dw.set(key, { va, vb, d: 1 / NS });
+      }
+      res.dwell = [...dw.values()];
+      ma /= NS; mb /= NS;
+      for (let i = 0; i < NS; i++) { psiA[i] -= ma; psiB[i] -= mb; }
+      let cr = 0, ci = 0;
+      for (let i = 0; i < NS; i++) {
+        const a = sw[0][i], v = a - (a + sw[1][i] + sw[2][i]) / 3, th = (TWO_PI * i) / NS;
+        cr += v * Math.cos(th); ci += v * Math.sin(th);
+      }
+      res.V1an = (2 / NS) * Math.hypot(cr, ci);
+    }
+
+    if (threePh && p.out !== 'vaz' && CARRIER_BASED.has(p.strat))
+      res.info.push('Harmonics common to all three phases (carrier harmonics and sidebands with offset a multiple of 3) cancel in line quantities.');
+    return res;
+  }
+
+  // ---------- drawing helpers ----------
+  // Plot colours come from the theme tokens. A probe element resolves var()/calc()/oklch() to a usable colour.
+  const colors = {};
+  const TOKEN_MAP = {
+    text: '--text', muted: '--text-3', border: '--border-2', surface: '--surface', bg: '--surface-2',
+    'c-signal': '--series-1', 'c-message': '--series-2', 'c-aux': '--series-3', 'c-third': '--series-7',
+    'c-carrier': '--text-faint', 'c-grid': '--border',
+  };
+  function tokenColor(name) {
+    const i = document.createElement('i');
+    i.style.display = 'none'; i.style.color = `var(${name})`;
+    document.body.appendChild(i);
+    const c = getComputedStyle(i).color;
+    i.remove();
+    return c;
+  }
+  let FONT = 'system-ui, sans-serif';
+  function readColors() {
+    for (const [k, t] of Object.entries(TOKEN_MAP)) colors[k] = tokenColor(t);
+    FONT = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || FONT;
+  }
+  const font = (size, weight) => `${weight ? weight + ' ' : ''}${size}px ${FONT}`;
+  function prep(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, r.width, r.height);
+    ctx.font = font(11);
+    return { ctx, w: r.width, h: r.height };
+  }
+  function niceStep(range, count) {
+    const raw = range / count, pow = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / pow;
+    return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * pow;
+  }
+  function niceCeil(v) {
+    for (const c of [0.1, 0.2, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (v <= c) return c;
+    return Math.ceil(v);
+  }
+  function axes(ctx, box, x0, x1, y0, y1, o = {}) {
+    ctx.save();
+    ctx.strokeStyle = colors['c-grid']; ctx.fillStyle = colors.muted; ctx.lineWidth = 1;
+    const xs = o.xStep || niceStep(x1 - x0, Math.max(2, box.w / 80));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (let x = Math.ceil(x0 / xs - 1e-9) * xs; x <= x1 + 1e-9; x += xs) {
+      const px = Math.round(box.x + ((x - x0) / (x1 - x0)) * box.w) + 0.5;
+      ctx.beginPath(); ctx.moveTo(px, box.y); ctx.lineTo(px, box.y + box.h); ctx.stroke();
+      if (o.xLabels !== false && px < box.x + box.w - 100) ctx.fillText(o.xFmt ? o.xFmt(x) : String(+x.toFixed(6)), px, box.y + box.h + 5);
+    }
+    const ys = o.yStep || niceStep(y1 - y0, Math.max(2, box.h / 36));
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = Math.ceil(y0 / ys - 1e-9) * ys; v <= y1 + 1e-9; v += ys) {
+      const py = Math.round(box.y + box.h - ((v - y0) / (y1 - y0)) * box.h) + 0.5;
+      ctx.beginPath(); ctx.moveTo(box.x, py); ctx.lineTo(box.x + box.w, py); ctx.stroke();
+      ctx.fillText(o.yFmt ? o.yFmt(v, ys) : String(+v.toFixed(3)), box.x - 6, py);
+    }
+    ctx.strokeStyle = colors.border;
+    ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+    ctx.restore();
+  }
+  function trace(ctx, box, arr, i0, i1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    let pen = false;
+    const n = i1 - i0;
+    for (let i = i0; i <= i1; i++) {
+      const v = arr[i % NS];
+      if (Number.isNaN(v)) { pen = false; continue; }
+      const px = box.x + ((i - i0) / n) * box.w, py = box.y + box.h - ((v - y0) / (y1 - y0)) * box.h;
+      if (pen) ctx.lineTo(px, py); else { ctx.moveTo(px, py); pen = true; }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Title plus legend on a backing box so traces never hide it
+  function header(ctx, box, title, items) {
+    ctx.save();
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.font = font(12, 600);
+    const tw = ctx.measureText(title).width;
+    ctx.font = font(11);
+    let width = tw + 12;
+    for (const [label] of items) width += 28 + ctx.measureText(label).width;
+    const x0 = box.x + 4, y0 = box.y + 4, yy = y0 + 10;
+    ctx.fillStyle = colors.surface; ctx.globalAlpha = 0.92;
+    ctx.fillRect(x0, y0, Math.min(width + 4, box.w - 8), 20);
+    ctx.globalAlpha = 1;
+    ctx.font = font(12, 600); ctx.fillStyle = colors.text;
+    ctx.fillText(title, x0 + 6, yy);
+    ctx.font = font(11);
+    let x = x0 + tw + 18;
+    for (const [label, color, dash] of items) {
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash || []);
+      ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + 16, yy); ctx.stroke();
+      ctx.fillStyle = colors.muted; ctx.fillText(label, x + 20, yy);
+      x += 28 + ctx.measureText(label).width;
+    }
+    ctx.restore();
+  }
+  const cursorIndex = (p) => Math.round(((p.cur % 360) / 360) * NS) % NS;
+
+  // ---------- plots ----------
+  const TIME_L = 44, TIME_R = 12;
+  function drawTime(p, res) {
+    const { ctx, w, h } = prep($('timeCanvas'));
+    const T = 8, B = 24, G = 18;
+    const avail = h - T - B - G;
+    const top = { x: TIME_L, y: T, w: w - TIME_L - TIME_R, h: Math.round(avail * 0.42) };
+    const bot = { x: TIME_L, y: top.y + top.h + G, w: w - TIME_L - TIME_R, h: avail - top.h };
+    const i1 = Math.round((NS * p.view) / 360);
+    const degStep = p.view === 360 ? 60 : p.view === 180 ? 30 : 15;
+    const xFmt = (x) => x + '°';
+    const threePh = p.topo !== 'hb';
+
+    // top: carriers and references
+    let rmax = 1;
+    for (let k = 0; k < 3; k++) for (let i = 0; i < NS; i += 8) if (!Number.isNaN(ref[k][i])) rmax = Math.max(rmax, Math.abs(ref[k][i]));
+    const ry = Math.max(1.25, niceCeil(rmax * 1.08));
+    axes(ctx, top, 0, p.view, -ry, ry, { xStep: degStep, xLabels: false, yStep: ry > 1.5 ? 1 : 0.5 });
+    const carrierShown = CARRIER_BASED.has(p.strat);
+    if (carrierShown) for (let j = 0; j < res.nCars; j++) trace(ctx, top, cars[j], 0, i1, -ry, ry, colors['c-carrier'], 1);
+    const tItems = [[threePh ? 'v*a' : 'v*', colors['c-message']]];
+    if (threePh && allPhases) {
+      trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6);
+      trace(ctx, top, ref[2], 0, i1, -ry, ry, colors['c-third'], 1.6);
+      tItems.push(['v*b', colors['c-aux']], ['v*c', colors['c-third']]);
+    }
+    if (!threePh && p.hbmod === 'uni') { trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6); tItems.push(['−v*', colors['c-aux']]); }
+    trace(ctx, top, ref[0], 0, i1, -ry, ry, colors['c-message'], 1.8, carrierShown ? null : [6, 4]);
+    if (carrierShown) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
+    header(ctx, top, carrierShown ? 'Reference and carrier' : 'Fundamental reference', tItems);
+
+    // bottom: output
+    let ymax;
+    if (p.out === 'ia') { let m = 0; for (let i = 0; i < NS; i++) m = Math.max(m, Math.abs(y[i])); ymax = niceCeil(m * 1.15 || 1); }
+    else ymax = { vaz: 1.25, vab: 2.5, van: 1.5 }[p.out];
+    axes(ctx, bot, 0, p.view, -ymax, ymax, { xStep: degStep, xFmt, yStep: ymax > 2 ? 1 : 0.5 });
+    trace(ctx, bot, y, 0, i1, -ymax, ymax, colors['c-signal'], p.out === 'ia' ? 1.6 : 1.1);
+    trace(ctx, bot, fund, 0, i1, -ymax, ymax, colors['c-message'], 1.6, [6, 4]);
+    header(ctx, bot, OUT_LABEL[p.out] + (p.out === 'ia' ? ' (pu)' : ' / Vdc'), [[OUT_LABEL[p.out], colors['c-signal']], ['fundamental', colors['c-message'], [6, 4]]]);
+    ctx.fillStyle = colors.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('ω₁t', bot.x + bot.w, h - 1);
+
+    // time cursor
+    if (p.cur <= p.view) {
+      const x = Math.round(TIME_L + (p.cur / p.view) * top.w) + 0.5;
+      ctx.save();
+      ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.5; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(x, top.y); ctx.lineTo(x, top.y + top.h); ctx.moveTo(x, bot.y); ctx.lineTo(x, bot.y + bot.h); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function hmaxFor(p, res) {
+    if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
+    if (!CARRIER_BASED.has(p.strat)) return 50;
+    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p : 3 * p.p;
+    return Math.min(200, Math.max(40, Math.ceil((target + 8) / 10) * 10));
+  }
+
+  function drawSpectrum(p, res) {
+    const { ctx, w, h } = prep($('specCanvas'));
+    const L = 46, R = 12, T = 8, B = 24;
+    const box = { x: L, y: T, w: w - L - R, h: h - T - B };
+    const Hm = hmaxFor(p, res);
+    let vmax = 0;
+    for (let k = 1; k <= Hm; k++) vmax = Math.max(vmax, amp[k]);
+    const y0 = dbScale ? -60 : 0, y1 = dbScale ? 10 : niceCeil(vmax * 1.08 || 1);
+    const val = (k) => (dbScale ? 20 * Math.log10(Math.max(amp[k], 1e-6)) : amp[k]);
+    axes(ctx, box, 0, Hm + 1, y0, y1, {
+      xStep: niceStep(Hm, Math.max(2, box.w / 60)),
+      yStep: dbScale ? 10 : undefined,
+      yFmt: (v, st) => (dbScale ? v.toFixed(0) : v.toFixed(st < 0.1 ? 2 : 1)),
+    });
+    const X = (k) => box.x + (k / (Hm + 1)) * box.w;
+    const Y = (v) => box.y + box.h - ((Math.max(v, y0) - y0) / (y1 - y0)) * box.h;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
+
+    // carrier multiples
+    if (CARRIER_BASED.has(p.strat)) {
+      ctx.strokeStyle = colors['c-carrier']; ctx.fillStyle = colors.muted; ctx.setLineDash([3, 3]);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      const showLabels = X(p.p) - X(0) > 16;
+      for (let m = 1; m * p.p <= Hm; m++) {
+        const x = Math.round(X(m * p.p)) + 0.5;
+        ctx.beginPath(); ctx.moveTo(x, box.y + 22); ctx.lineTo(x, box.y + box.h); ctx.stroke();
+        if (showLabels) ctx.fillText((m === 1 ? '' : m) + 'p', x, box.y + 21);
+      }
+      ctx.setLineDash([]);
+    }
+    // eliminated harmonics (SHE)
+    if (res.eliminated) {
+      ctx.fillStyle = colors['c-message']; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      for (const n of res.eliminated) if (n <= Hm) ctx.fillText('×', X(n), Y(y0) - 2);
+    }
+    // bars
+    const bw = Math.max(1.5, Math.min(7, (box.w / (Hm + 1)) * 0.6));
+    for (let k = 1; k <= Hm; k++) {
+      const v = val(k);
+      if (!dbScale && amp[k] < 1e-4) continue;
+      const x = X(k), yy = Y(v);
+      ctx.fillStyle = k === 1 ? colors['c-message'] : colors['c-signal'];
+      ctx.fillRect(x - bw / 2, yy, bw, box.y + box.h - yy);
+    }
+    // hover
+    if (hoverX !== null && hoverX >= box.x && hoverX <= box.x + box.w) {
+      const k = Math.max(1, Math.min(Hm, Math.round(((hoverX - box.x) / box.w) * (Hm + 1))));
+      const x = X(k);
+      ctx.strokeStyle = colors.text; ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, box.y); ctx.lineTo(Math.round(x) + 0.5, box.y + box.h); ctx.stroke();
+      ctx.globalAlpha = 1;
+      const pct = res.V1 > 1e-9 ? ` (${((100 * amp[k]) / res.V1).toFixed(1)} % of h=1)` : '';
+      const label = `h = ${k}:  ${amp[k].toFixed(4)}${dbScale ? ' = ' + val(k).toFixed(1) + ' dB' : ''}${k > 1 ? pct : ''}`;
+      const tw = ctx.measureText(label).width + 12;
+      const lx = x + 8 + tw > box.x + box.w ? x - 8 - tw : x + 8;
+      ctx.fillStyle = colors.surface; ctx.strokeStyle = colors.border;
+      ctx.fillRect(lx, box.y + 28, tw, 20); ctx.strokeRect(lx + 0.5, box.y + 28.5, tw - 1, 19);
+      ctx.fillStyle = colors.text; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, lx + 6, box.y + 38);
+    }
+    ctx.restore();
+    ctx.fillStyle = colors.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('harmonic order h', box.x + box.w, h - 1);
+    ctx.save();
+    ctx.translate(11, box.y + box.h / 2); ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(dbScale ? 'dB re Vdc' : (p.out === 'ia' ? 'amplitude (pu)' : 'amplitude / Vdc'), 0, 0);
+    ctx.restore();
+  }
+
+  const alphaBeta = (a, b, c) => [(2 / 3) * (a - 0.5 * b - 0.5 * c), (b - c) / SQRT3];
+  function drawSpaceVectors(p, res) {
+    if (p.topo === 'hb' || !res.dwell) return;
+    const { ctx, w, h } = prep($('svCanvas'));
+    const gap = 16, size = Math.min(h - 10, (w - gap) / 2);
+    if (size < 60) return; // not laid out (hidden tab or tiny window)
+    const boxes = [
+      { x: (w - 2 * size - gap) / 2, y: (h - size) / 2, s: size },
+      { x: (w - 2 * size - gap) / 2 + size + gap, y: (h - size) / 2, s: size },
+    ];
+    for (const b of boxes) {
+      ctx.fillStyle = colors.bg; ctx.fillRect(b.x, b.y, b.s, b.s);
+      ctx.strokeStyle = colors.border; ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.s - 1, b.s - 1);
+    }
+    const plotIn = (b, R) => ({
+      X: (v) => b.x + b.s / 2 + (v / R) * (b.s / 2 - 14),
+      Y: (v) => b.y + b.s / 2 - (v / R) * (b.s / 2 - 14),
+      k: (b.s / 2 - 14) / R,
+    });
+    const axesCross = (b) => {
+      ctx.strokeStyle = colors['c-grid']; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(b.x + 8, b.y + b.s / 2 + 0.5); ctx.lineTo(b.x + b.s - 8, b.y + b.s / 2 + 0.5);
+      ctx.moveTo(b.x + b.s / 2 + 0.5, b.y + 8); ctx.lineTo(b.x + b.s / 2 + 0.5, b.y + b.s - 8);
+      ctx.stroke();
+    };
+    const ic = cursorIndex(p);
+
+    // left: voltage vectors
+    const b0 = boxes[0], P0 = plotIn(b0, 1.85);
+    axesCross(b0);
+    ctx.strokeStyle = colors.muted; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 0; k <= 6; k++) {
+      const a = (4 / 3) * Math.cos((k * Math.PI) / 3), b = (4 / 3) * Math.sin((k * Math.PI) / 3);
+      if (k) ctx.lineTo(P0.X(a), P0.Y(b)); else ctx.moveTo(P0.X(a), P0.Y(b));
+    }
+    ctx.stroke();
+    // all available vectors of an L-level converter
+    const L = res.levels, lv = Array.from({ length: L }, (_, i) => -1 + (2 * i) / (L - 1));
+    ctx.fillStyle = colors.muted;
+    const seen = new Set();
+    for (const a of lv) for (const b of lv) for (const c of lv) {
+      const [va, vb] = alphaBeta(a, b, c), key = Math.round(va * 1e3) + ',' + Math.round(vb * 1e3);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ctx.beginPath(); ctx.arc(P0.X(va), P0.Y(vb), 1.6, 0, TWO_PI); ctx.fill();
+    }
+    ctx.setLineDash([2, 3]); ctx.strokeStyle = colors['c-carrier'];
+    ctx.beginPath(); ctx.arc(P0.X(0), P0.Y(0), (2 / SQRT3) * P0.k, 0, TWO_PI); ctx.stroke();
+    ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(P0.X(0), P0.Y(0), res.V1an * P0.k, 0, TWO_PI); ctx.stroke();
+    ctx.setLineDash([]);
+    // dot area ∝ dwell time
+    const rScale = L > 2 ? 14 : 22;
+    for (const { va, vb, d } of res.dwell) {
+      const r = 2.5 + Math.sqrt(d) * rScale;
+      ctx.fillStyle = colors['c-signal']; ctx.globalAlpha = 0.85;
+      ctx.beginPath(); ctx.arc(P0.X(va), P0.Y(vb), r, 0, TWO_PI); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (L === 2 && b0.s > 170) {
+      ctx.font = font(10); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = colors.muted;
+      for (const [a, b, c] of [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1], [1, 0, 1]]) {
+        const [va, vb] = alphaBeta(2 * a - 1, 2 * b - 1, 2 * c - 1);
+        ctx.fillText(`${a}${b}${c}`, P0.X(va * 1.3), P0.Y(vb * 1.3));
+      }
+      ctx.fillText('000/111', P0.X(0), P0.Y(0) + 16);
+    }
+    // vector at the time cursor
+    const [ca, cb] = alphaBeta(sw[0][ic], sw[1][ic], sw[2][ic]);
+    ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(P0.X(0), P0.Y(0)); ctx.lineTo(P0.X(ca), P0.Y(cb)); ctx.stroke();
+    ctx.beginPath(); ctx.arc(P0.X(ca), P0.Y(cb), 6, 0, TWO_PI); ctx.stroke();
+    ctx.font = font(11);
+    header(ctx, { x: b0.x, y: b0.y, w: b0.s }, 'Voltage vectors', []);
+
+    // right: flux
+    const b1 = boxes[1];
+    let R = 0.2;
+    for (let i = 0; i < NS; i += 4) R = Math.max(R, Math.hypot(psiA[i], psiB[i]));
+    const P1 = plotIn(b1, R * 1.1);
+    axesCross(b1);
+    ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), res.V1an * P1.k, 0, TWO_PI); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = colors['c-signal']; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let i = 0; i <= NS; i += 2) {
+      const j = i % NS;
+      if (i) ctx.lineTo(P1.X(psiA[j]), P1.Y(psiB[j])); else ctx.moveTo(P1.X(psiA[j]), P1.Y(psiB[j]));
+    }
+    ctx.stroke();
+    ctx.fillStyle = colors['c-message'];
+    ctx.beginPath(); ctx.arc(P1.X(psiA[ic]), P1.Y(psiB[ic]), 4, 0, TWO_PI); ctx.fill();
+    header(ctx, { x: b1.x, y: b1.y, w: b1.s }, 'Stator flux ψ', []);
+
+    ctx.fillStyle = colors.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.font = font(10);
+    ctx.fillText('dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
+    ctx.fillText('dot size: dwell time', b0.x + 6, b0.y + b0.s - 4);
+  }
+
+  // ---------- circuit schematic (SVG) ----------
+  const W = (x1, y1, x2, y2, c = 'sch-w') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${c}"/>`;
+  const DOT = (x, y) => `<circle cx="${x}" cy="${y}" r="2.6" class="sch-dot"/>`;
+  const TX = (x, y, s, c = 'sch-t', a = 'middle') => `<text x="${x}" y="${y}" class="${c}" text-anchor="${a}">${s}</text>`;
+  function SW(x, y1, y2, on, label, side = -1) { // ideal switch on a vertical branch y1 < y2
+    const hgt = y2 - y1, a = y1 + hgt * 0.3, b = y2 - hgt * 0.3;
+    let s = W(x, y1, x, a) + W(x, b, x, y2);
+    s += on ? W(x, b, x, a, 'sch-on') : W(x, b, x + side * -0.5 * (b - a), a + 0.12 * (b - a), 'sch-off');
+    s += `<circle cx="${x}" cy="${a}" r="2.2" class="sch-c"/><circle cx="${x}" cy="${b}" r="2.2" class="sch-c"/>`;
+    if (label) s += TX(x + side * 9, (a + b) / 2 + 4, label, 'sch-s', side < 0 ? 'end' : 'start');
+    return s;
+  }
+  function CAP(x, y1, y2) {
+    const m = (y1 + y2) / 2;
+    return W(x, y1, x, m - 4) + W(x, m + 4, x, y2) + W(x - 11, m - 4, x + 11, m - 4, 'sch-p') + W(x - 11, m + 4, x + 11, m + 4, 'sch-p');
+  }
+  function DIODE(x, yTop, yBot) { // conducts upwards: anode at yBot, cathode at yTop
+    const m = (yTop + yBot) / 2;
+    return W(x, yTop, x, m - 6) + W(x, m + 6, x, yBot) + `<path d="M${x - 7} ${m + 6} L${x + 7} ${m + 6} L${x} ${m - 6} Z" class="sch-d"/>` + W(x - 7, m - 6, x + 7, m - 6, 'sch-p');
+  }
+  function COIL(x, yy, len) {
+    const n = 4, step = len / n;
+    let d = `M${x} ${yy}`;
+    for (let i = 0; i < n; i++) d += ` a${step / 2} ${step / 2} 0 0 1 ${step} 0`;
+    return `<path d="${d}" class="sch-w"/>`;
+  }
+  function RL(x, yy) { // resistor + inductor from x to x+76
+    return `<rect x="${x}" y="${yy - 5}" width="26" height="10" class="sch-r"/>` + W(x + 26, yy, x + 36, yy) + COIL(x + 36, yy, 40);
+  }
+  function LOAD3(x, ys) { // star-connected R-L load with terminals a, b, c at x
+    let s = '';
+    const xn = x + 110;
+    ['a', 'b', 'c'].forEach((n, k) => {
+      const yy = ys[k];
+      s += TX(x - 6, yy + 4, n, 'sch-l', 'end') + DOT(x, yy) + W(x, yy, x + 12, yy) + RL(x + 12, yy) + W(x + 88, yy, xn, yy);
+    });
+    s += W(xn, ys[0], xn, ys[2]) + DOT(xn, ys[1]) + TX(xn + 6, ys[1] + 4, 'n', 'sch-l', 'start');
+    s += TX(x + 50, ys[0] - 14, 'R-L load', 'sch-s');
+    return s;
+  }
+  function DCLINK(x, yTop, yBot) {
+    const m = (yTop + yBot) / 2;
+    return CAP(x, yTop, m) + CAP(x, m, yBot) + DOT(x, m) + TX(x - 8, m + 4, 'z', 'sch-l', 'end') +
+      TX(x + 16, (yTop + m) / 2 + 4, 'V<tspan class="sch-sub" dy="3">dc</tspan>', 'sch-t', 'start') +
+      TX(x + 16, (m + yBot) / 2 + 4, 'V<tspan class="sch-sub" dy="3">dc</tspan>', 'sch-t', 'start') +
+      TX(x, yTop - 8, '+', 'sch-l') + TX(x, yBot + 16, '−', 'sch-l');
+  }
+  function fmtLevel(v, N) {
+    if (Math.abs(v) < 1e-9) return '0';
+    const sgn = v > 0 ? '+' : '−', a = Math.abs(v);
+    if (Math.abs(a - 1) < 1e-9) return sgn + 'V<sub>dc</sub>';
+    if (Math.abs(a - 2) < 1e-9) return sgn + '2V<sub>dc</sub>';
+    const n = Math.round(a * N);
+    return `${sgn}${n === 1 ? '' : n}V<sub>dc</sub>/${N}`;
+  }
+  const fmtSvg = (s) => s.replace(/<sub>(.*?)<\/sub>(.*)$/, '<tspan class="sch-sub" dy="3">$1</tspan><tspan dy="-3">$2</tspan>');
+
+  function drawCircuit(p, res) {
+    const ic = cursorIndex(p), topo = p.topo, N = p.cells;
+    const lvl = [sw[0][ic], sw[1][ic], sw[2][ic]];
+    let svg = '', vb = '0 0 640 300', status = '';
+    if (topo === '2l') {
+      svg += DCLINK(40, 40, 260) + W(40, 40, 330, 40) + W(40, 260, 330, 260);
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 130 + 100 * k, on = lvl[k] > 0;
+        svg += DOT(x, 40) + DOT(x, 260) + SW(x, 40, 150, on, k ? '' : 'S<tspan class="sch-sub" dy="3">a+</tspan>') + SW(x, 150, 260, !on, k ? '' : 'S<tspan class="sch-sub" dy="3">a−</tspan>');
+        svg += DOT(x, 150) + W(x, 150, x + 26, 150) + TX(x + 31, 154, n, 'sch-l', 'start') + TX(x + 31, 172, fmtSvg(fmtLevel(lvl[k], 1)), 'sch-v', 'start');
+      });
+      svg += LOAD3(460, [110, 150, 190]);
+      const bits = lvl.map((v) => (v > 0 ? 1 : 0)).join('');
+      status = `Switching state ${bits}: v<sub>az</sub> = ${fmtLevel(lvl[0], 1)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], 1)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], 1)}`;
+    } else if (topo === 'hb') {
+      svg += DCLINK(60, 40, 260) + W(60, 40, 440, 40) + W(60, 260, 440, 260);
+      [['a', 220], ['b', 440]].forEach(([n, x], k) => {
+        const on = lvl[k] > 0;
+        svg += DOT(x, 40) + DOT(x, 260) + SW(x, 40, 150, on) + SW(x, 150, 260, !on) + DOT(x, 150);
+        svg += TX(x + 10, 140, n, 'sch-l', 'start') + TX(x + 10, 178, fmtSvg(fmtLevel(lvl[k], 1)), 'sch-v', 'start');
+      });
+      svg += W(220, 150, 290, 150) + RL(290, 150) + W(366, 150, 440, 150) + TX(330, 132, 'R-L load', 'sch-s');
+      status = `v<sub>az</sub> = ${fmtLevel(lvl[0], 1)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], 1)}, load voltage v<sub>ab</sub> = ${fmtLevel(lvl[0] - lvl[1], 1)}`;
+    } else if (topo === 'npc') {
+      vb = '0 0 640 320';
+      svg += DCLINK(40, 30, 290) + W(40, 30, 430, 30) + W(40, 290, 430, 290);
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 170 + 130 * k, xd = x - 36, l = Math.round(lvl[k]);
+        const on = [l === 1, l >= 0, l <= 0, l === -1];
+        const lab = (i) => (k ? '' : `S<tspan class="sch-sub" dy="3">${i}</tspan>`);
+        svg += DOT(x, 30) + DOT(x, 290);
+        svg += SW(x, 30, 95, on[0], lab(1), 1) + SW(x, 95, 160, on[1], lab(2), 1) + SW(x, 160, 225, on[2], lab(3), 1) + SW(x, 225, 290, on[3], lab(4), 1);
+        svg += DOT(x, 95) + DOT(x, 225) + W(x, 95, xd, 95) + W(x, 225, xd, 225);
+        svg += DIODE(xd, 95, 160) + DIODE(xd, 160, 225) + DOT(xd, 160) + W(xd, 160, xd - 10, 160) + TX(xd - 13, 164, 'z', 'sch-s', 'end');
+        svg += DOT(x, 160) + W(x, 160, x + 40, 160) + TX(x + 44, 164, n, 'sch-l', 'start') + TX(x + 44, 182, fmtSvg(fmtLevel(lvl[k], 1)), 'sch-v', 'start');
+      });
+      svg += LOAD3(512, [120, 160, 200]);
+      status = `v<sub>az</sub> = ${fmtLevel(lvl[0], 1)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], 1)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], 1)}`;
+    } else if (topo === 'fc') {
+      vb = '0 0 700 320';
+      const Nf = p.fcn, carrierBased = CARRIER_BASED.has(p.strat);
+      const yy = (i) => 30 + (i * 260) / (2 * Nf); // node positions along the leg, P at 0, output at Nf, N at 2Nf
+      svg += DCLINK(40, 30, 290) + W(40, 30, 470, 30) + W(40, 290, 470, 290);
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 170 + 150 * k;
+        const lab = (s) => (k ? '' : `S<tspan class="sch-sub" dy="3">${s}</tspan>`);
+        svg += DOT(x, 30) + DOT(x, 290);
+        for (let j = 0; j < Nf; j++) {
+          const on = carrierBased && cellA[k][j][ic] === 1;
+          svg += SW(x, yy(j), yy(j + 1), on, lab(j + 1), 1) + SW(x, yy(2 * Nf - j - 1), yy(2 * Nf - j), !on, lab(j + 1 + '′'), 1);
+        }
+        for (let j = 1; j < Nf; j++) { // C_j joins the node below S_j and the node above S_j′
+          const xc = x - 30 * (Nf - j), y1 = yy(j), y2 = yy(2 * Nf - j);
+          svg += DOT(x, y1) + DOT(x, y2) + W(x, y1, xc, y1) + W(x, y2, xc, y2) + CAP(xc, y1, y2);
+          if (k === 0) { // capacitor voltages, stacked left of the outermost capacitor
+            const v = fmtSvg(fmtLevel((2 * (Nf - j)) / Nf, Nf).replace('+', ''));
+            svg += Nf === 2 ? TX(xc - 14, 150, v, 'sch-s', 'end')
+              : TX(x - 30 * (Nf - 1) - 14, 146 + 30 * (j - 1), `C<tspan class="sch-sub" dy="3">${j}</tspan><tspan dy="-3"> </tspan>` + v, 'sch-s', 'end');
+          }
+        }
+        svg += DOT(x, 160) + W(x, 160, x + 24, 160) + TX(x + 28, 164, n, 'sch-l', 'start') + TX(x + 28, 182, fmtSvg(fmtLevel(lvl[k], Nf)), 'sch-v', 'start');
+      });
+      svg += LOAD3(572, [120, 160, 200]);
+      status = `v<sub>az</sub> = ${fmtLevel(lvl[0], Nf)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], Nf)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], Nf)}`;
+    } else { // chb
+      const top = 46, pitch = 100, H = top + N * pitch + 24;
+      vb = `0 0 640 ${H}`;
+      const ybus = top + N * pitch - 6;
+      const carrierBased = CARRIER_BASED.has(p.strat);
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const cx = 20 + 160 * k;
+        svg += DOT(cx + 4, 22) + TX(cx + 4, 14, n, 'sch-l') + W(cx + 4, 22, cx + 4, top + 40);
+        for (let j = 0; j < N; j++) {
+          const cy = top + j * pitch;
+          const A = carrierBased ? cellA[k][j][ic] : 0, B = carrierBased ? cellB[k][j][ic] : 0;
+          const xa = cx + 16, xc = cx + 46, xb = cx + 140, xo = cx + 152; // leg A, capacitor, leg B, output stub
+          svg += W(xa, cy, xb, cy) + W(xa, cy + 80, xb, cy + 80) + CAP(xc, cy, cy + 80);
+          svg += SW(xa, cy, cy + 40, A === 1) + SW(xa, cy + 40, cy + 80, A !== 1) + SW(xb, cy, cy + 40, B === 1, '', 1) + SW(xb, cy + 40, cy + 80, B !== 1, '', 1);
+          svg += DOT(xa, cy + 40) + DOT(xb, cy + 40) + W(xa, cy + 40, cx + 4, cy + 40) + W(xb, cy + 40, xo, cy + 40);
+          svg += TX(xc + 16, cy + 30, `V<tspan class="sch-sub" dy="3">dc</tspan><tspan dy="-3">/${N}</tspan>`, 'sch-s', 'start');
+          svg += TX(xc + 16, cy + 60, fmtSvg((A - B > 0 ? '+' : A - B < 0 ? '−' : '') + (A - B ? 'V<sub>dc</sub>/' + N : '0')), 'sch-v', 'start');
+          if (j < N - 1) svg += W(xo, cy + 40, xo, cy + 90) + W(xo, cy + 90, cx + 4, cy + 90) + W(cx + 4, cy + 90, cx + 4, cy + pitch + 40);
+          else svg += W(xo, cy + 40, xo, ybus) + DOT(xo, ybus);
+        }
+      });
+      svg += W(172, ybus, 492, ybus) + TX(496, ybus + 4, 'z', 'sch-l', 'start');
+      svg += LOAD3(512, [60, 100, 140]);
+      status = `v<sub>az</sub> = ${fmtLevel(lvl[0], N)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], N)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], N)}`;
+    }
+    $('circuit').innerHTML = `<svg viewBox="${vb}" role="img" aria-label="Converter circuit with switch states at the time cursor">${svg}</svg>`;
+    $('circuitStatus').innerHTML = `At ω₁t = ${p.cur.toFixed(0)}°: ${status}`;
+  }
+
+  // ---------- readout ----------
+  function updateReadout(p, res) {
+    const rows = [];
+    const pct = (v) => (Number.isFinite(v) ? (100 * v).toFixed(2) + ' %' : '—');
+    const threePh = p.topo !== 'hb';
+    if (!res.failed) {
+      const unit = p.out === 'ia' ? ' pu' : ' Vdc';
+      rows.push(['Fundamental ' + OUT_LABEL[p.out] + ',1', res.V1.toFixed(3) + unit]);
+      if (p.strat !== 'sixstep') {
+        const lin = threePh ? { vaz: p.M, van: p.M, vab: SQRT3 * p.M, ia: p.M }[p.out] : { vaz: p.M, vab: 2 * p.M, ia: 2 * p.M }[p.out];
+        if (lin > 0) rows.push(['Ratio to linear value', (res.V1 / lin).toFixed(3)]);
+      }
+      rows.push(['THD', pct(res.thd)]);
+      if (p.out !== 'ia') {
+        rows.push(['WTHD0', pct(res.wthd0)]);
+        rows.push(['WTHD', pct(res.wthd)]);
+      }
+      if (p.topo === '2l' || p.topo === 'hb') rows.push(['Commutations / period (leg a)', String(res.commutations)]);
+      else rows.push(['Level changes / period (phase a)', String(res.commutations)]);
+      if (res.cellComm) rows.push([p.topo === 'fc' ? 'Commutations / period, switch pairs of phase a' : 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
+      if (res.angles) rows.push(['Angles (°)', res.angles.map((a) => ((a * 180) / Math.PI).toFixed(2)).join(', ')]);
+    }
+    $('readout').innerHTML = rows.map(([k, v]) => `<div><dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd></div>`).join('');
+    $('note').innerHTML = res.notes.length ? window.AtlasUI.icon('alert') + `<span>${res.notes.join(' · ')}</span>` : '';
+    const sub = (s) => s.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>');
+    window.AtlasUI.setTip('outTip', OUT_TIP + res.info.map((s) => `<p>${sub(s)}</p>`).join(''));
+  }
+  const OUT_TIP = '<p><b>v<sub>az</sub></b> phase output to the dc midpoint z · <b>v<sub>ab</sub></b> line-to-line (the load voltage for the H-bridge) · <b>v<sub>an</sub></b> load phase voltage · <b>i<sub>a</sub></b> current in an R-L load with angle φ<sub>1</sub>.</p>';
+
+  // ---------- UI ----------
+  // keep select values consistent with the chosen converter
+  function constrain() {
+    const topo = $('topo').value;
+    const fix = (id, allowed, fallback) => {
+      for (const o of $(id).querySelectorAll('option')) { const ok = allowed.includes(o.value); o.hidden = !ok; o.disabled = !ok; }
+      if (!allowed.includes($(id).value)) $(id).value = fallback;
+    };
+    fix('strat', STRATS[topo], 'spwm');
+    fix('out', OUTS[topo], 'vab');
+    if (ARRS[topo]) fix('arr', ARRS[topo], 'pd');
+    for (const g of $('strat').querySelectorAll('optgroup')) g.hidden = ![...g.children].some((o) => !o.hidden);
+  }
+  function syncUI(p) {
+    window.AtlasUI.setTip('stratTip', DESCRIPTION[p.strat](p.topo));
+    window.AtlasUI.setTip('topoTip', TOPO_TEXT[p.topo]);
+    document.querySelectorAll('[data-for], [data-topo]').forEach((el) => {
+      const okS = !el.dataset.for || el.dataset.for.split(' ').includes(p.strat);
+      const okT = !el.dataset.topo || el.dataset.topo.split(' ').includes(p.topo);
+      el.hidden = !(okS && okT);
+    });
+    $('phi-ctl').hidden = p.out !== 'ia';
+    $('M-out').textContent = p.M.toFixed(2);
+    $('p-out').textContent = String(p.p);
+    $('phi-out').textContent = p.phi + '°';
+    $('cur-out').textContent = p.cur.toFixed(0) + '°';
+  }
+
+  let lastKey = '', lastRes = null;
+  function render() {
+    constrain();
+    window.AtlasUI.syncSegs();
+    const p = params();
+    syncUI(p);
+    const key = computeKeys.map((k) => p[k]).join('|');
+    if (key !== lastKey || !lastRes) { lastRes = compute(p); lastKey = key; }
+    const res = lastRes;
+    drawTime(p, res);
+    drawSpectrum(p, res);
+    drawSpaceVectors(p, res);
+    drawCircuit(p, res);
+    updateReadout(p, res);
+  }
+  let pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; render(); });
+  }
+
+  function writeHash() {
+    const q = new URLSearchParams();
+    for (const id of ctlIds) q.set(id, $(id).value);
+    if ($('example').value) q.set('ex', $('example').value);
+    history.replaceState(null, '', '#' + q.toString());
+  }
+  function readHash() {
+    const q = new URLSearchParams(location.hash.slice(1));
+    for (const id of ctlIds) if (q.has(id)) $(id).value = q.get(id);
+    showExample(q.get('ex') || '');
+  }
+
+  // ---------- examples ----------
+  const EXAMPLES = new Map();
+  for (const g of window.PWM_EXAMPLES || []) for (const it of g.items) EXAMPLES.set(it.id, { ...it, group: g.group, source: g.source });
+  function showExample(id) {
+    const ex = EXAMPLES.get(id);
+    $('example').value = ex ? id : '';
+    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${ex.group} · ${ex.source}</p>` : '');
+  }
+  function loadExample(id) {
+    const ex = EXAMPLES.get(id);
+    if (!ex) { showExample(''); writeHash(); return; }
+    for (const [k, v] of Object.entries(DEFAULTS)) if (k !== 'cur' && k !== 'view') $(k).value = v;
+    for (const [k, v] of Object.entries(ex.cfg)) $(k).value = v;
+    showExample(id);
+    writeHash(); schedule();
+  }
+
+  function init() {
+    window.AtlasUI.init();
+    readColors();
+    const UI = window.AtlasUI;
+    UI.setToggle($('sweep'), false, 'Stop sweep', 'Sweep M', 'pause', 'activity');
+    UI.setToggle($('play'), false, 'Pause', 'Animate', 'pause', 'play');
+    const sel = $('example');
+    for (const g of window.PWM_EXAMPLES || []) {
+      const og = document.createElement('optgroup');
+      og.label = g.group;
+      for (const it of g.items) { const o = document.createElement('option'); o.value = it.id; o.textContent = it.title; og.appendChild(o); }
+      sel.appendChild(og);
+    }
+    readHash();
+    sel.addEventListener('change', () => loadExample(sel.value));
+    for (const id of ctlIds) $(id).addEventListener('input', () => { writeHash(); schedule(); });
+    $('allph').addEventListener('click', (e) => { allPhases = !allPhases; e.currentTarget.setAttribute('aria-pressed', allPhases); schedule(); });
+    $('scale').addEventListener('click', (e) => { dbScale = !dbScale; e.currentTarget.setAttribute('aria-pressed', dbScale); schedule(); });
+    $('share').addEventListener('click', async (e) => {
+      writeHash();
+      const btn = e.currentTarget;
+      let ok = true;
+      try { await navigator.clipboard.writeText(location.href); } catch { ok = false; }
+      btn.innerHTML = UI.icon(ok ? 'check' : 'alert');
+      btn.title = ok ? 'Link copied' : 'Copy the address from the address bar';
+      setTimeout(() => { btn.innerHTML = UI.icon('link'); btn.title = 'Copy link'; }, 1600);
+    });
+
+    // animation: sweep M back and forth, and/or move the time cursor
+    let dir = 1, last = 0, running = false;
+    function frame(ts) {
+      if (!sweeping && !playing) { running = false; return; }
+      const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0;
+      last = ts;
+      if (sweeping) {
+        const el = $('M'), topM = $('strat').value === 'she' ? 1.2 : 2;
+        let M = parseFloat(el.value) + dir * 0.2 * dt;
+        if (M >= topM) { M = topM; dir = -1; }
+        if (M <= 0.05) { M = 0.05; dir = 1; }
+        el.value = M.toFixed(2);
+      }
+      if (playing) {
+        const el = $('cur'), view = parseFloat($('view').value);
+        let c = parseFloat(el.value) + 36 * dt;
+        if (c > Math.min(359, view)) c = 0;
+        el.value = c.toFixed(1);
+      }
+      render();
+      requestAnimationFrame(frame);
+    }
+    const startLoop = () => { if (!running) { running = true; last = 0; requestAnimationFrame(frame); } };
+    $('sweep').addEventListener('click', (e) => {
+      sweeping = !sweeping;
+      const b = e.currentTarget;
+      UI.setToggle(b, sweeping, 'Stop sweep', 'Sweep M', 'pause', 'activity');
+      if (sweeping) startLoop(); else { writeHash(); schedule(); }
+    });
+    $('play').addEventListener('click', (e) => {
+      playing = !playing;
+      const b = e.currentTarget;
+      UI.setToggle(b, playing, 'Pause', 'Animate', 'pause', 'play');
+      if (playing) startLoop(); else { writeHash(); schedule(); }
+    });
+
+    // click or drag on the waveform plot to move the time cursor
+    const tc = $('timeCanvas');
+    const setCursor = (e) => {
+      const r = tc.getBoundingClientRect(), view = parseFloat($('view').value);
+      const f = (e.clientX - r.left - TIME_L) / (r.width - TIME_L - TIME_R);
+      $('cur').value = Math.max(0, Math.min(359, f * view)).toFixed(0);
+      schedule();
+    };
+    tc.addEventListener('pointerdown', (e) => { tc.setPointerCapture(e.pointerId); setCursor(e); });
+    tc.addEventListener('pointermove', (e) => { if (e.buttons) setCursor(e); });
+    tc.addEventListener('pointerup', writeHash);
+
+    const sc = $('specCanvas');
+    sc.addEventListener('pointermove', (e) => { hoverX = e.clientX - sc.getBoundingClientRect().left; schedule(); });
+    sc.addEventListener('pointerleave', () => { hoverX = null; schedule(); });
+    window.addEventListener('resize', schedule);
+    window.addEventListener('hashchange', () => { readHash(); schedule(); });
+    const recolor = () => { readColors(); lastKey = ''; schedule(); };
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', recolor);
+    new MutationObserver(recolor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    render();
+  }
+
+  init();
+})();
+</script>
 </body>
 </html>

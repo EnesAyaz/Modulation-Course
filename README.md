@@ -1,41 +1,54 @@
-# EJ2311 Modulation – PWM visualisations
+# EJ2311 Modulation – PWM Explorer
 
-Interactive visualisations of PWM for power electronic converters, made for EJ2311 *Modulation of
-Power Electronic Converters* at KTH. Live at https://enesayaz.github.io/Modulation-Course/.
+Interactive PWM visualisation for EJ2311 *Modulation of Power Electronic Converters* at KTH.
+Live at https://enesayaz.github.io/Modulation-Course/.
 
-- **Examples** (`index.html`): cases from the lectures, computer assignments and lab, each opening
-  the explorer with its settings and a short note on what to look for.
-- **PWM Explorer** (`explorer.html`):
-  - Converters: three-phase two-level, single-phase H-bridge (bipolar/unipolar), three-level NPC,
-    cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers), and flying capacitor with 3 or 4
-    levels (phase-shifted carriers).
-  - Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
-    and two- and three-level selective harmonic elimination.
-  - Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
-    spectrum, THD / WTHD0, R-L load current, voltage vectors and stator flux.
+- Converters: three-phase two-level, single-phase H-bridge (bipolar/unipolar), three-level NPC,
+  cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers), and flying capacitor with 3 or 4
+  levels (phase-shifted carriers).
+- Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
+  and two- and three-level selective harmonic elimination.
+- Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
+  spectrum, THD / WTHD0, R-L load current, voltage vectors and stator flux.
+- 31 examples from the lectures, computer assignments and lab, in the picker at the top.
 
-It is a plain static site (HTML/CSS/JS, no build step, no external libraries), served by GitHub Pages.
+The page follows the Atlas style: theme tokens, light/dark/system themes, short labels, and every
+explanation behind an (i) button.
 
-## Layout
+## One file
 
-| Path | What it is |
+The published `index.html` is a **single self-contained file**: CSS, JS and the logo are inlined,
+with no external resources. It can be sent on its own and opened by double-click, offline.
+`index.html` is generated; do not edit it by hand.
+
+| Source | What it is |
 |---|---|
-| `index.html` | Example gallery |
-| `explorer.html`, `assets/js/explorer.js` | PWM explorer |
-| `assets/js/examples.js` | The example list, shared by the gallery and the explorer |
-| `assets/js/fft.js` | Radix-2 FFT used by the explorer |
-| `assets/css/style.css` | Shared styles (light and dark mode) |
+| `src/index.src.html` | Page template (markup and all (i) texts) |
+| `assets/css/style.css` | Styles and theme tokens |
+| `assets/js/explorer.js` | PWM engine and plots |
+| `assets/js/ui.js` | Tooltips, theme switcher, segmented controls |
+| `assets/js/examples.js` | The example list |
+| `assets/js/fft.js` | Radix-2 FFT |
+| `tools/logo.svg` | Logo and favicon |
+| `tools/build.py` | Inlines everything into `index.html` |
+
+After changing a source file, rebuild:
+
+```
+python tools/build.py
+```
+
+`explorer.html` only redirects old links to `index.html`.
 
 ## Adding an example
 
 Add an item to `assets/js/examples.js`: an `id`, a `title`, a `text` (use `v_ab` for subscripts) and
-a `cfg` with the explorer settings. It then appears both in the gallery and in the explorer's picker.
+a `cfg` with the explorer settings, then rebuild.
 
-## Linking to explorer settings
+## Linking to settings
 
-The explorer keeps its settings in the URL, e.g.
-`explorer.html#topo=chb&cells=2&arr=ps&strat=spwm&M=0.8&p=10&out=vaz`. Use the **Copy link** button
-to get a link for the current settings.
+Settings are kept in the URL, e.g. `index.html#topo=chb&cells=2&arr=ps&strat=spwm&M=0.8&p=10&out=vaz`.
+The link button next to the spectrum copies the current one.
 
 Keys: `topo` (`2l hb npc chb fc`), `cells` (`1 2 3`), `fcn` (`2 3`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
 `strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
@@ -47,10 +60,3 @@ Keys: `topo` (`2l hb npc chb fc`), `cells` (`1 2 3`), `fcn` (`2 3`), `arr` (`ps 
 `Source/` is the private course archive (book chapters, student submissions, exams, lab results).
 It is in `.gitignore` and must never be pushed: the repository is public, and GitHub rejects files
 over 100 MB.
-
-## Preview locally
-
-```
-python -m http.server 8000
-```
-then open http://localhost:8000.
