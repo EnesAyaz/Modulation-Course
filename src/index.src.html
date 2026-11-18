@@ -23,6 +23,8 @@
   <button class="tip" aria-label="About this page" data-tip="<p><b>PWM Explorer</b> for EJ2311 <i>Modulation of Power Electronic Converters</i>, KTH.</p><p>Pick an example, or choose a converter and a modulation method yourself. The circuit, the waveforms, the harmonic spectrum and the space vectors update together.</p><p>One fundamental period is computed at 16 384 points, so the FFT bins are exactly the harmonic orders. Every setting is kept in the address, so a copied link reopens the same case.</p>"></button>
   <span class="spacer"></span>
   <div class="ex">
+    <label for="exSrc" hidden>Lecture or assignment</label>
+    <select id="exSrc" class="src"><option value="">All lectures and assignments</option></select>
     <label for="example" hidden>Example</label>
     <select id="example"><option value="">Examples…</option></select>
     <button class="tip" id="exTip" aria-label="About this example" hidden></button>
@@ -41,6 +43,7 @@
           <option value="npc" data-short="NPC" title="Three-phase, three-level NPC">Three-level NPC</option>
           <option value="chb" data-short="CHB" title="Three-phase cascaded H-bridge">Cascaded H-bridge</option>
           <option value="fc" data-short="FC" title="Three-phase flying capacitor">Flying capacitor</option>
+          <option value="mmc" data-short="MMC" title="Three-phase modular multilevel converter">Modular multilevel converter</option>
         </select>
         <div class="seg" data-select="topo" aria-label="Topology"></div>
       </div>
@@ -60,6 +63,22 @@
           <option value="3" data-short="3 · 4 lvl">3 pairs, 2 flying capacitors, 4 levels</option>
         </select>
         <div class="seg" data-select="fcn"></div>
+      </div>
+      <div class="ctl" data-topo="mmc">
+        <div class="lbl">Submodules per arm</div>
+        <select id="smn" hidden>
+          <option value="2">2</option><option value="4" selected>4</option><option value="6">6</option><option value="8">8</option>
+        </select>
+        <div class="seg" data-select="smn"></div>
+      </div>
+      <div class="ctl" data-topo="mmc">
+        <div class="lbl">Arm modulation <button class="tip" data-tip="<p><b>NLM</b>, nearest level modulation: each arm inserts the whole number of submodules closest to N(1 ∓ v*)/2. No carrier; N + 1 levels.</p><p><b>PS, N + 1</b>: one phase-shifted carrier per submodule, lower arm complementary to the upper; N + 1 levels, first harmonic group at Np.</p><p><b>PS, 2N + 1</b>: lower-arm carriers shifted a further 180°/N; 2N + 1 levels, first harmonic group at 2Np.</p>"></button></div>
+        <select id="mmcmod" hidden>
+          <option value="nlm" data-short="NLM">Nearest level</option>
+          <option value="ps1" data-short="PS · N+1" selected>Phase-shifted, N + 1 levels</option>
+          <option value="ps2" data-short="PS · 2N+1">Phase-shifted, 2N + 1 levels</option>
+        </select>
+        <div class="seg" data-select="mmcmod"></div>
       </div>
       <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">
         <div class="lbl">Carriers <button class="tip" data-tip="<p><b>PS</b>, phase-shifted: one full-range carrier per cell, shifted by 180°/N.</p><p><b>PD</b>, phase disposition: level-shifted carriers, all in phase.</p><p><b>POD</b>: carriers above zero in antiphase with those below.</p><p><b>APOD</b>: adjacent carriers alternate in phase.</p>"></button></div>
@@ -127,7 +146,7 @@
         <label class="lbl" for="M">Modulation index M <output id="M-out"></output></label>
         <input type="range" id="M" min="0" max="2" step="0.01" value="0.8">
       </div>
-      <div class="ctl" data-for="spwm thi svm dpwm1">
+      <div class="ctl" id="p-ctl" data-for="spwm thi svm dpwm1">
         <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
         <input type="range" id="p" min="3" max="60" step="1" value="21">
       </div>
@@ -172,7 +191,7 @@
       <div class="card-h"><h2 id="h-time">Waveforms</h2>
         <button class="tip" data-tip="One fundamental period. Top: references and carriers. Bottom: the switched output with its fundamental (dashed). The dotted line is the time cursor."></button>
         <div class="tools">
-          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc">All phases</button>
+          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc mmc">All phases</button>
           <select id="view" hidden>
             <option value="360" data-short="360°" selected>0 – 360°</option>
             <option value="180" data-short="180°">0 – 180°</option>
@@ -203,7 +222,7 @@
       <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
     </section>
 
-    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc">
+    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc mmc">
       <div class="card-h"><h2 id="h-sv">Space vectors</h2>
         <button class="tip" data-tip="<p><b>Left</b>: the vectors the converter can produce. Dot area is proportional to dwell time; the line is the vector at the time cursor.</p><p><b>Right</b>: stator flux ψ = ∫v<sub>αβ</sub> dt. Dashed circles show the fundamental.</p>"></button>
       </div>

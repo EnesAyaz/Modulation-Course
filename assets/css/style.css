@@ -110,10 +110,12 @@ sub { font-size: 75%; line-height: 0; }
 .topbar h1 { margin: 0; font-size: 15.5px; font-weight: 620; letter-spacing: -.005em; white-space: nowrap; }
 .topbar .spacer { flex: 1; }
 .topbar .ex { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.topbar .ex select { width: 260px; max-width: 100%; }
+.topbar .ex select { width: 250px; max-width: 100%; }
+.topbar .ex select.src { width: 190px; }
 @media (max-width: 640px) {
   .topbar .ex { order: 3; flex-basis: 100%; }
-  .topbar .ex select { flex: 1; width: auto; }
+  .topbar .ex select { flex: 1; width: auto; min-width: 0; }
+  .topbar .ex select.src { flex: 0 1 42%; }
 }
 
 /* ---------- layout ---------- */
@@ -229,3 +231,6 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
   .aura { display: none; }
   .glass, #tipBubble { background: var(--surface); background-image: none; border: 1px solid var(--border); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+.circuit svg.tall { max-height: 460px; }
+.sch-sm { fill: var(--surface); stroke: var(--text-3); stroke-width: 1.2; }
+.sch-sm.on { fill: var(--series-1); stroke: var(--series-1); }

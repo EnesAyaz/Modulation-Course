@@ -19,15 +19,17 @@
     npc: ['spwm', 'thi', 'svm', 'she'],
     chb: ['spwm', 'thi', 'svm'],
     fc: ['spwm', 'thi', 'svm'],
+    mmc: ['spwm', 'thi', 'svm'],
   };
   const ARRS = { npc: ['pd', 'pod'], chb: ['ps', 'pd', 'pod', 'apod'] };
-  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'] };
+  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'], mmc: ['vaz', 'vab', 'van', 'ia'] };
   const TOPO_TEXT = {
     '2l': 'Two switches per leg. Each phase connects to +V<sub>dc</sub> or −V<sub>dc</sub>.',
     hb: 'Two legs feed one load between a and b. v<sub>ab</sub> = v<sub>az</sub> − v<sub>bz</sub> can take ±2V<sub>dc</sub> and 0.',
     npc: 'Four switches and two clamp diodes per leg. Each phase connects to +V<sub>dc</sub>, the midpoint z, or −V<sub>dc</sub>.',
     chb: 'N H-bridge cells in series per phase, each with its own dc source V<sub>dc</sub>/N. 2N + 1 levels per phase.',
     fc: 'N complementary switch pairs per leg with N − 1 flying capacitors charged to 2V<sub>dc</sub>·k/N. N + 1 levels per phase. Phase-shifted carriers, one per switch pair.',
+    mmc: 'Each phase leg has an upper and a lower arm of N half-bridge submodules (capacitor 2V<sub>dc</sub>/N each) and an arm inductor. An inserted submodule adds its capacitor voltage, a bypassed one adds 0. With n<sub>u</sub> and n<sub>l</sub> inserted, v<sub>az</sub> = (n<sub>l</sub> − n<sub>u</sub>)·V<sub>dc</sub>/N. Capacitor voltages are assumed constant and circulating current is ignored.',
   };
   const DESCRIPTION = {
     spwm: () => 'v*<sub>x</sub> = M cos(ωt − φ<sub>x</sub>). Linear up to M = 1.',
@@ -44,12 +46,12 @@
   const OUT_LABEL = { vaz: 'v_az', vab: 'v_ab', van: 'v_an', ia: 'i_a' };
 
   const DEFAULTS = {
-    topo: '2l', cells: '2', fcn: '2', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
+    topo: '2l', cells: '2', fcn: '2', smn: '4', mmcmod: 'ps1', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
     M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
   };
   const ctlIds = Object.keys(DEFAULTS);
-  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'cur']);
-  const computeKeys = ['topo', 'cells', 'fcn', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
   let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
 
   function params() {
@@ -61,9 +63,9 @@
   // ---------- buffers ----------
   const sw = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)];  // phase (or leg) output, −1 … +1
   const ref = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)]; // references as compared
-  const cars = Array.from({ length: 6 }, () => new Float64Array(NS));            // carriers
-  const cellA = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg A on
-  const cellB = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg B on
+  const cars = Array.from({ length: 16 }, () => new Float64Array(NS));           // carriers
+  const cellA = [0, 1, 2].map(() => Array.from({ length: 8 }, () => new Int8Array(NS))); // CHB leg A upper on / FC pair on / MMC upper-arm SM inserted
+  const cellB = [0, 1, 2].map(() => Array.from({ length: 8 }, () => new Int8Array(NS))); // CHB leg B upper on / MMC lower-arm SM inserted
   const y = new Float64Array(NS);       // selected output
   const fund = new Float64Array(NS);    // its fundamental
   const re = new Float64Array(NS), im = new Float64Array(NS);
@@ -201,9 +203,11 @@
     const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
     const phase = [0, -TWO_PI / 3, TWO_PI / 3];
     const M = p.M, topo = p.topo, N = p.cells, Nf = p.fcn, fc = topo === 'fc';
+    const mmc = topo === 'mmc', Nm = p.smn, mm = p.mmcmod;
     const threePh = topo !== 'hb';
-    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
-    res.fc = fc;
+    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : mmc ? (mm === 'ps2' ? 2 * Nm + 1 : Nm + 1)
+      : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
+    res.fc = fc; res.mmc = mmc;
     for (let k = 0; k < 3; k++) { ref[k].fill(NaN); }
 
     if (CARRIER_BASED.has(p.strat)) {
@@ -216,13 +220,16 @@
       }
       const ps = topo === 'chb' && p.arr === 'ps';
       const arr = topo === 'npc' ? (p.arr === 'pod' ? 'pod' : 'pd') : p.arr;
-      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : ps ? N : 2 * N;
+      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : mmc ? (mm === 'nlm' ? 0 : mm === 'ps1' ? Nm : 2 * Nm) : ps ? N : 2 * N;
       res.nCars = K; res.ps = ps;
       const cv = new Float64Array(K);
       for (let i = 0; i < NS; i++) {
         const u = (p.p * i) / NS, fu = u - Math.floor(u);
         if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
         else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        else if (mmc) { // upper-arm carriers 360°/N apart; for 2N + 1 levels the lower arm's set is shifted by a further 180°/N
+          for (let j = 0; j < K; j++) { const v = u + (j % Nm) / Nm + (j >= Nm ? 1 / (2 * Nm) : 0); cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        }
         else if (ps) for (let j = 0; j < N; j++) { const v = u + j / (2 * N); cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else {
           const t = carrierAt('tri', fu);
@@ -254,7 +261,19 @@
           ref[k][i] = r;
           if (topo === '2l') sw[k][i] = 2 * gt(r, cv[0]) - 1;
           else if (topo === 'npc') sw[k][i] = -1 + gt(r, cv[0]) + gt(r, cv[1]);
-          else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
+          else if (mmc) { // upper arm inserts ≈ N(1 − v*)/2 submodules, lower arm ≈ N(1 + v*)/2
+            let nu = 0, nl = 0;
+            if (mm === 'nlm') {
+              nl = Math.max(0, Math.min(Nm, Math.round((Nm * (1 + r)) / 2))); nu = Nm - nl;
+              for (let j = 0; j < Nm; j++) { cellA[k][j][i] = j < nu ? 1 : 0; cellB[k][j][i] = j < nl ? 1 : 0; }
+            } else {
+              for (let j = 0; j < Nm; j++) {
+                const U = gt(-r, cv[j]), Lw = mm === 'ps1' ? 1 - U : gt(r, cv[Nm + j]);
+                cellA[k][j][i] = U; cellB[k][j][i] = Lw; nu += U; nl += Lw;
+              }
+            }
+            sw[k][i] = (nl - nu) / Nm;
+          } else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
             let s = 0;
             for (let j = 0; j < Nf; j++) { const A = gt(r, cv[j]); cellA[k][j][i] = A; s += A; }
             sw[k][i] = -1 + (2 * s) / Nf;
@@ -278,6 +297,9 @@
         res.info.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped near the peaks and low-order harmonics appear.`);
       }
       if (fc) res.info.push(`The switch pairs' carriers are shifted by ${(360 / Nf).toFixed(0)}°, so each pair switches equally and the flying capacitors stay balanced on average (their voltages are assumed constant). The first harmonic group of v_az is at h = ${Nf}p = ${Nf * p.p}.`);
+      if (mmc && mm === 'nlm') res.info.push(`Nearest level modulation: each arm inserts the whole number of submodules closest to N(1 ∓ v*)/2. No carrier is used, so p has no effect; v_az is a staircase with N + 1 = ${Nm + 1} levels. A real converter picks which submodules to insert by sorting the capacitor voltages; here they are taken in a fixed order.`);
+      if (mmc && mm === 'ps1') res.info.push(`Phase-shifted carriers 360°/N apart, one per submodule. The lower arm is the complement of the upper, so N submodules are inserted per leg at all times and v_az has N + 1 = ${Nm + 1} levels. The first harmonic group of v_az is at h = Np = ${Nm * p.p}.`);
+      if (mmc && mm === 'ps2') res.info.push(`The lower-arm carriers are shifted a further 180°/N against the upper arm. The number of inserted submodules per leg then varies between N − 1 and N + 1 (the arm inductors take the difference), and v_az has 2N + 1 = ${2 * Nm + 1} levels.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
     } else if (p.strat === 'sixstep') {
@@ -355,6 +377,7 @@
     res.wthd = Math.sqrt(w2) / amp[1];
     const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
     res.commutations = transitions(sw[0]);
+    if (mmc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nm }, (_, j) => transitions(cellA[0][j]));
     if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
     if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
 
@@ -513,7 +536,7 @@
     const ry = Math.max(1.25, niceCeil(rmax * 1.08));
     axes(ctx, top, 0, p.view, -ry, ry, { xStep: degStep, xLabels: false, yStep: ry > 1.5 ? 1 : 0.5 });
     const carrierShown = CARRIER_BASED.has(p.strat);
-    if (carrierShown) for (let j = 0; j < res.nCars; j++) trace(ctx, top, cars[j], 0, i1, -ry, ry, colors['c-carrier'], 1);
+    if (res.nCars) for (let j = 0; j < res.nCars; j++) trace(ctx, top, cars[j], 0, i1, -ry, ry, colors['c-carrier'], 1);
     const tItems = [[threePh ? 'v*a' : 'v*', colors['c-message']]];
     if (threePh && allPhases) {
       trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6);
@@ -522,8 +545,8 @@
     }
     if (!threePh && p.hbmod === 'uni') { trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6); tItems.push(['−v*', colors['c-aux']]); }
     trace(ctx, top, ref[0], 0, i1, -ry, ry, colors['c-message'], 1.8, carrierShown ? null : [6, 4]);
-    if (carrierShown) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
-    header(ctx, top, carrierShown ? 'Reference and carrier' : 'Fundamental reference', tItems);
+    if (res.nCars) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
+    header(ctx, top, !carrierShown ? 'Fundamental reference' : res.nCars ? 'Reference and carrier' : 'Reference', tItems);
 
     // bottom: output
     let ymax;
@@ -549,7 +572,9 @@
   function hmaxFor(p, res) {
     if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
     if (!CARRIER_BASED.has(p.strat)) return 50;
-    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p : 3 * p.p;
+    if (res.mmc && p.mmcmod === 'nlm') return 50;
+    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p
+      : res.mmc ? (p.mmcmod === 'ps2' ? 2 : 1) * p.smn * p.p + 2 * p.p : 3 * p.p;
     return Math.min(200, Math.max(40, Math.ceil((target + 8) / 10) * 10));
   }
 
@@ -573,7 +598,7 @@
     ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
 
     // carrier multiples
-    if (CARRIER_BASED.has(p.strat)) {
+    if (res.nCars) {
       ctx.strokeStyle = colors['c-carrier']; ctx.fillStyle = colors.muted; ctx.setLineDash([3, 3]);
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       const showLabels = X(p.p) - X(0) > 16;
@@ -753,6 +778,12 @@
     for (let i = 0; i < n; i++) d += ` a${step / 2} ${step / 2} 0 0 1 ${step} 0`;
     return `<path d="${d}" class="sch-w"/>`;
   }
+  function COILV(x, y0, len) { // vertical inductor from y0 down to y0+len
+    const n = 4, step = len / n;
+    let d = `M${x} ${y0}`;
+    for (let i = 0; i < n; i++) d += ` a${step / 2} ${step / 2} 0 0 1 0 ${step}`;
+    return `<path d="${d}" class="sch-w"/>`;
+  }
   function RL(x, yy) { // resistor + inductor from x to x+76
     return `<rect x="${x}" y="${yy - 5}" width="26" height="10" class="sch-r"/>` + W(x + 26, yy, x + 36, yy) + COIL(x + 36, yy, 40);
   }
@@ -779,8 +810,9 @@
     const sgn = v > 0 ? '+' : '−', a = Math.abs(v);
     if (Math.abs(a - 1) < 1e-9) return sgn + 'V<sub>dc</sub>';
     if (Math.abs(a - 2) < 1e-9) return sgn + '2V<sub>dc</sub>';
-    const n = Math.round(a * N);
-    return `${sgn}${n === 1 ? '' : n}V<sub>dc</sub>/${N}`;
+    let n = Math.round(a * N), d = N;
+    for (let g = n; g > 1; g--) if (n % g === 0 && d % g === 0) { n /= g; d /= g; break; }
+    return d === 1 ? `${sgn}${n}V<sub>dc</sub>` : `${sgn}${n === 1 ? '' : n}V<sub>dc</sub>/${d}`;
   }
   const fmtSvg = (s) => s.replace(/<sub>(.*?)<\/sub>(.*)$/, '<tspan class="sch-sub" dy="3">$1</tspan><tspan dy="-3">$2</tspan>');
 
@@ -848,7 +880,7 @@
       });
       svg += LOAD3(572, [120, 160, 200]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], Nf)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], Nf)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], Nf)}`;
-    } else { // chb
+    } else if (topo === 'chb') {
       const top = 46, pitch = 100, H = top + N * pitch + 24;
       vb = `0 0 640 ${H}`;
       const ybus = top + N * pitch - 6;
@@ -873,7 +905,37 @@
       svg += LOAD3(512, [60, 100, 140]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], N)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], N)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], N)}`;
     }
-    $('circuit').innerHTML = `<svg viewBox="${vb}" role="img" aria-label="Converter circuit with switch states at the time cursor">${svg}</svg>`;
+    if (topo === 'mmc') {
+      // per phase: P rail, upper arm of N submodules, arm inductor, output, arm inductor, lower arm, N rail
+      const Nm = p.smn, A = Nm * 20, yP = 30, yUe = yP + 10 + A, ym = yUe + 40, yL = ym + 46, yN = yL + A + 10;
+      const den = p.mmcmod === 'ps2' ? Nm : Nm;
+      svg = DCLINK(40, yP, yN) + W(40, yP, 450, yP) + W(40, yN, 450, yN);
+      const counts = [];
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 190 + 130 * k;
+        let nu = 0, nl = 0;
+        svg += DOT(x, yP) + DOT(x, yN) + W(x, yP, x, yUe + 4) + COILV(x, yUe + 4, 24) + W(x, yUe + 28, x, ym + 12) + COILV(x, ym + 12, 24) + W(x, ym + 36, x, yN);
+        for (let j = 0; j < Nm; j++) {
+          const U = cellA[k][j][ic] === 1, L = cellB[k][j][ic] === 1;
+          nu += U; nl += L;
+          svg += `<rect x="${x - 15}" y="${yP + 13 + 20 * j}" width="30" height="14" rx="3" class="sch-sm${U ? ' on' : ''}"/>`;
+          svg += `<rect x="${x - 15}" y="${yL + 3 + 20 * j}" width="30" height="14" rx="3" class="sch-sm${L ? ' on' : ''}"/>`;
+        }
+        counts.push([nu, nl]);
+        svg += TX(x + 21, yP + 14 + A / 2, `${nu}/${Nm}`, 'sch-s', 'start') + TX(x + 21, yL + 4 + A / 2, `${nl}/${Nm}`, 'sch-s', 'start');
+        svg += DOT(x, ym) + W(x, ym, x + 24, ym) + TX(x + 28, ym + 4, n, 'sch-l', 'start') + TX(x + 28, ym + 22, fmtSvg(fmtLevel(lvl[k], den)), 'sch-v', 'start');
+        if (k === 0) {
+          svg += TX(x - 22, yP + 14 + A / 2, 'upper', 'sch-s', 'end') + TX(x - 22, yL + 4 + A / 2, 'lower', 'sch-s', 'end');
+          svg += TX(x - 14, yUe + 20, 'L', 'sch-s', 'end') + TX(x - 14, ym + 28, 'L', 'sch-s', 'end');
+        }
+      });
+      svg += LOAD3(540, [ym - 40, ym, ym + 40]);
+      svg += `<rect x="540" y="${yN - 14}" width="12" height="9" rx="2" class="sch-sm on"/>` + TX(558, yN - 6, 'inserted', 'sch-s', 'start') +
+        `<rect x="612" y="${yN - 14}" width="12" height="9" rx="2" class="sch-sm"/>` + TX(630, yN - 6, 'bypassed', 'sch-s', 'start');
+      vb = `0 0 690 ${yN + 22}`;
+      status = `Phase a: ${counts[0][0]} of ${Nm} upper and ${counts[0][1]} of ${Nm} lower submodules inserted, v<sub>az</sub> = ${fmtLevel(lvl[0], den)}`;
+    }
+    $('circuit').innerHTML = `<svg viewBox="${vb}" class="${topo === 'mmc' && p.smn > 4 ? 'tall' : ''}" role="img" aria-label="Converter circuit with switch states at the time cursor">${svg}</svg>`;
     $('circuitStatus').innerHTML = `At ω₁t = ${p.cur.toFixed(0)}°: ${status}`;
   }
 
@@ -896,7 +958,7 @@
       }
       if (p.topo === '2l' || p.topo === 'hb') rows.push(['Commutations / period (leg a)', String(res.commutations)]);
       else rows.push(['Level changes / period (phase a)', String(res.commutations)]);
-      if (res.cellComm) rows.push([p.topo === 'fc' ? 'Commutations / period, switch pairs of phase a' : 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
+      if (res.cellComm) rows.push([{ fc: 'Commutations / period, switch pairs of phase a', mmc: 'Commutations / period, upper-arm submodules of phase a' }[p.topo] || 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
       if (res.angles) rows.push(['Angles (°)', res.angles.map((a) => ((a * 180) / Math.PI).toFixed(2)).join(', ')]);
     }
     $('readout').innerHTML = rows.map(([k, v]) => `<div><dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd></div>`).join('');
@@ -928,6 +990,7 @@
       el.hidden = !(okS && okT);
     });
     $('phi-ctl').hidden = p.out !== 'ia';
+    if (p.topo === 'mmc' && p.mmcmod === 'nlm') $('p-ctl').hidden = true; // no carrier
     $('M-out').textContent = p.M.toFixed(2);
     $('p-out').textContent = String(p.p);
     $('phi-out').textContent = p.phi + '°';
@@ -959,22 +1022,46 @@
   function writeHash() {
     const q = new URLSearchParams();
     for (const id of ctlIds) q.set(id, $(id).value);
+    if ($('exSrc').value) q.set('src', $('exSrc').value);
     if ($('example').value) q.set('ex', $('example').value);
     history.replaceState(null, '', '#' + q.toString());
   }
   function readHash() {
     const q = new URLSearchParams(location.hash.slice(1));
     for (const id of ctlIds) if (q.has(id)) $(id).value = q.get(id);
+    const src = q.get('src') || '';
+    $('exSrc').value = SOURCES.some((s) => s.id === src) ? src : '';
+    fillExamples();
     showExample(q.get('ex') || '');
   }
 
-  // ---------- examples ----------
+  // ---------- examples, filtered by lecture or assignment ----------
+  const SOURCES = window.PWM_SOURCES || [];
+  const SRC = new Map(SOURCES.map((s) => [s.id, s]));
   const EXAMPLES = new Map();
-  for (const g of window.PWM_EXAMPLES || []) for (const it of g.items) EXAMPLES.set(it.id, { ...it, group: g.group, source: g.source });
+  for (const g of window.PWM_EXAMPLES || []) for (const it of g.items) EXAMPLES.set(it.id, { ...it, group: g.group });
+  function fillExamples() {
+    const src = $('exSrc').value, sel = $('example'), cur = sel.value;
+    sel.innerHTML = '';
+    const head = document.createElement('option');
+    head.value = ''; head.textContent = src ? `${SRC.get(src).label}: choose…` : 'Examples…';
+    sel.appendChild(head);
+    for (const s of src ? [SRC.get(src)] : SOURCES) {
+      const og = document.createElement('optgroup');
+      og.label = `${s.label} · ${s.topic}`;
+      for (const ex of EXAMPLES.values()) if (ex.tags.includes(s.id)) {
+        const o = document.createElement('option'); o.value = ex.id; o.textContent = ex.title; og.appendChild(o);
+      }
+      if (og.children.length) sel.appendChild(og);
+    }
+    sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+  }
   function showExample(id) {
     const ex = EXAMPLES.get(id);
+    if (ex && $('exSrc').value && !ex.tags.includes($('exSrc').value)) { $('exSrc').value = ''; fillExamples(); }
     $('example').value = ex ? id : '';
-    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${ex.group} · ${ex.source}</p>` : '');
+    const where = ex ? ex.tags.map((t) => `${SRC.get(t).label} (${SRC.get(t).topic})`).join(' · ') : '';
+    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${where}</p>` : '');
   }
   function loadExample(id) {
     const ex = EXAMPLES.get(id);
@@ -991,15 +1078,11 @@
     const UI = window.AtlasUI;
     UI.setToggle($('sweep'), false, 'Stop sweep', 'Sweep M', 'pause', 'activity');
     UI.setToggle($('play'), false, 'Pause', 'Animate', 'pause', 'play');
-    const sel = $('example');
-    for (const g of window.PWM_EXAMPLES || []) {
-      const og = document.createElement('optgroup');
-      og.label = g.group;
-      for (const it of g.items) { const o = document.createElement('option'); o.value = it.id; o.textContent = it.title; og.appendChild(o); }
-      sel.appendChild(og);
-    }
+    const sel = $('example'), srcSel = $('exSrc');
+    for (const sr of SOURCES) { const o = document.createElement('option'); o.value = sr.id; o.textContent = sr.label; o.title = sr.topic; srcSel.appendChild(o); }
     readHash();
     sel.addEventListener('change', () => loadExample(sel.value));
+    srcSel.addEventListener('change', () => { fillExamples(); showExample(sel.value); writeHash(); });
     for (const id of ctlIds) $(id).addEventListener('input', () => { writeHash(); schedule(); });
     $('allph').addEventListener('click', (e) => { allPhases = !allPhases; e.currentTarget.setAttribute('aria-pressed', allPhases); schedule(); });
     $('scale').addEventListener('click', (e) => { dbScale = !dbScale; e.currentTarget.setAttribute('aria-pressed', dbScale); schedule(); });

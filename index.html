@@ -125,10 +125,12 @@ sub { font-size: 75%; line-height: 0; }
 .topbar h1 { margin: 0; font-size: 15.5px; font-weight: 620; letter-spacing: -.005em; white-space: nowrap; }
 .topbar .spacer { flex: 1; }
 .topbar .ex { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.topbar .ex select { width: 260px; max-width: 100%; }
+.topbar .ex select { width: 250px; max-width: 100%; }
+.topbar .ex select.src { width: 190px; }
 @media (max-width: 640px) {
   .topbar .ex { order: 3; flex-basis: 100%; }
-  .topbar .ex select { flex: 1; width: auto; }
+  .topbar .ex select { flex: 1; width: auto; min-width: 0; }
+  .topbar .ex select.src { flex: 0 1 42%; }
 }
 
 /* ---------- layout ---------- */
@@ -244,6 +246,9 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
   .aura { display: none; }
   .glass, #tipBubble { background: var(--surface); background-image: none; border: 1px solid var(--border); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+.circuit svg.tall { max-height: 460px; }
+.sch-sm { fill: var(--surface); stroke: var(--text-3); stroke-width: 1.2; }
+.sch-sm.on { fill: var(--series-1); stroke: var(--series-1); }
 </style>
 </head>
 <body>
@@ -255,6 +260,8 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
   <button class="tip" aria-label="About this page" data-tip="<p><b>PWM Explorer</b> for EJ2311 <i>Modulation of Power Electronic Converters</i>, KTH.</p><p>Pick an example, or choose a converter and a modulation method yourself. The circuit, the waveforms, the harmonic spectrum and the space vectors update together.</p><p>One fundamental period is computed at 16 384 points, so the FFT bins are exactly the harmonic orders. Every setting is kept in the address, so a copied link reopens the same case.</p>"></button>
   <span class="spacer"></span>
   <div class="ex">
+    <label for="exSrc" hidden>Lecture or assignment</label>
+    <select id="exSrc" class="src"><option value="">All lectures and assignments</option></select>
     <label for="example" hidden>Example</label>
     <select id="example"><option value="">Examples…</option></select>
     <button class="tip" id="exTip" aria-label="About this example" hidden></button>
@@ -273,6 +280,7 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
           <option value="npc" data-short="NPC" title="Three-phase, three-level NPC">Three-level NPC</option>
           <option value="chb" data-short="CHB" title="Three-phase cascaded H-bridge">Cascaded H-bridge</option>
           <option value="fc" data-short="FC" title="Three-phase flying capacitor">Flying capacitor</option>
+          <option value="mmc" data-short="MMC" title="Three-phase modular multilevel converter">Modular multilevel converter</option>
         </select>
         <div class="seg" data-select="topo" aria-label="Topology"></div>
       </div>
@@ -292,6 +300,22 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
           <option value="3" data-short="3 · 4 lvl">3 pairs, 2 flying capacitors, 4 levels</option>
         </select>
         <div class="seg" data-select="fcn"></div>
+      </div>
+      <div class="ctl" data-topo="mmc">
+        <div class="lbl">Submodules per arm</div>
+        <select id="smn" hidden>
+          <option value="2">2</option><option value="4" selected>4</option><option value="6">6</option><option value="8">8</option>
+        </select>
+        <div class="seg" data-select="smn"></div>
+      </div>
+      <div class="ctl" data-topo="mmc">
+        <div class="lbl">Arm modulation <button class="tip" data-tip="<p><b>NLM</b>, nearest level modulation: each arm inserts the whole number of submodules closest to N(1 ∓ v*)/2. No carrier; N + 1 levels.</p><p><b>PS, N + 1</b>: one phase-shifted carrier per submodule, lower arm complementary to the upper; N + 1 levels, first harmonic group at Np.</p><p><b>PS, 2N + 1</b>: lower-arm carriers shifted a further 180°/N; 2N + 1 levels, first harmonic group at 2Np.</p>"></button></div>
+        <select id="mmcmod" hidden>
+          <option value="nlm" data-short="NLM">Nearest level</option>
+          <option value="ps1" data-short="PS · N+1" selected>Phase-shifted, N + 1 levels</option>
+          <option value="ps2" data-short="PS · 2N+1">Phase-shifted, 2N + 1 levels</option>
+        </select>
+        <div class="seg" data-select="mmcmod"></div>
       </div>
       <div class="ctl" data-topo="npc chb" data-for="spwm thi svm">
         <div class="lbl">Carriers <button class="tip" data-tip="<p><b>PS</b>, phase-shifted: one full-range carrier per cell, shifted by 180°/N.</p><p><b>PD</b>, phase disposition: level-shifted carriers, all in phase.</p><p><b>POD</b>: carriers above zero in antiphase with those below.</p><p><b>APOD</b>: adjacent carriers alternate in phase.</p>"></button></div>
@@ -359,7 +383,7 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
         <label class="lbl" for="M">Modulation index M <output id="M-out"></output></label>
         <input type="range" id="M" min="0" max="2" step="0.01" value="0.8">
       </div>
-      <div class="ctl" data-for="spwm thi svm dpwm1">
+      <div class="ctl" id="p-ctl" data-for="spwm thi svm dpwm1">
         <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
         <input type="range" id="p" min="3" max="60" step="1" value="21">
       </div>
@@ -404,7 +428,7 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
       <div class="card-h"><h2 id="h-time">Waveforms</h2>
         <button class="tip" data-tip="One fundamental period. Top: references and carriers. Bottom: the switched output with its fundamental (dashed). The dotted line is the time cursor."></button>
         <div class="tools">
-          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc">All phases</button>
+          <button type="button" class="btn" id="allph" aria-pressed="false" data-topo="2l npc chb fc mmc">All phases</button>
           <select id="view" hidden>
             <option value="360" data-short="360°" selected>0 – 360°</option>
             <option value="180" data-short="180°">0 – 180°</option>
@@ -435,7 +459,7 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
       <canvas class="plot" id="specCanvas" role="img" aria-label="Harmonic amplitudes versus harmonic order"></canvas>
     </section>
 
-    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc">
+    <section class="card" aria-labelledby="h-sv" data-topo="2l npc chb fc mmc">
       <div class="card-h"><h2 id="h-sv">Space vectors</h2>
         <button class="tip" data-tip="<p><b>Left</b>: the vectors the converter can produce. Dot area is proportional to dwell time; the line is the vector at the time cursor.</p><p><b>Right</b>: stator flux ψ = ∫v<sub>αβ</sub> dt. Dashed circles show the fundamental.</p>"></button>
       </div>
@@ -508,29 +532,38 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
 </script>
 <script>
 /* Example cases from the EJ2311 lectures, computer assignments and lab.
-   Used by the gallery (index.html) and the example picker in the explorer.
+   Each item has tags naming where it comes from (PWM_SOURCES), so students can pick by lecture or assignment.
    cfg keys are explorer control ids; anything left out takes the explorer default. */
+window.PWM_SOURCES = [
+  { id: 'L1', label: 'Lecture 1', topic: 'Basics, harmonic distortion' },
+  { id: 'L2', label: 'Lecture 2', topic: 'Carrier-based modulation, single-phase converters' },
+  { id: 'L3', label: 'Lecture 3', topic: 'Three-phase PWM, zero vectors, harmonic elimination' },
+  { id: 'L5', label: 'Lecture 5', topic: 'Multilevel modulation' },
+  { id: 'CA1', label: 'Computer assignment 1', topic: 'FFT, WTHD0, sawtooth carrier' },
+  { id: 'CA2', label: 'Computer assignment 2', topic: 'Harmonic elimination' },
+  { id: 'Lab', label: 'Laboratory exercise', topic: 'Three-phase SiC converter and induction machine' },
+];
 window.PWM_EXAMPLES = [
   {
     group: 'One phase leg',
     source: 'Lectures 1–2, computer assignment 1',
     items: [
-      { id: 'sixstep', title: 'Six-step square wave',
+      { id: 'sixstep', tags: ['L1'], title: 'Six-step square wave',
         text: 'Each leg is a square wave. v_az contains every odd harmonic with amplitude 4/(hπ)·Vdc. Switch the output to v_ab: the triplen harmonics cancel and only h = 6k ± 1 remain.',
         cfg: { topo: '2l', strat: 'sixstep', out: 'vaz', hmax: '50' } },
-      { id: 'ca1-saw', title: 'Sawtooth carrier (CA1)',
+      { id: 'ca1-saw', tags: ['CA1', 'L2'], title: 'Sawtooth carrier (CA1)',
         text: 'Computer assignment 1 settings: single-edge modulation with M = 0.75 and p = 11. Every carrier multiple mp has sidebands on both sides, with amplitudes set by Bessel functions. Compare the bars with your analytical spectrum.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.75, p: 11, out: 'vaz', hmax: '50' } },
-      { id: 'tri-nat', title: 'Triangle carrier, natural sampling',
+      { id: 'tri-nat', tags: ['L2'], title: 'Triangle carrier, natural sampling',
         text: 'Double-edge modulation, p = 15, M = 0.8. Around odd carrier multiples (15, 45) only even-offset sidebands appear; around even multiples (30, 60) only odd-offset sidebands. There are no baseband harmonics.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vaz' } },
-      { id: 'tri-sym', title: 'Regular sampling, symmetrical',
+      { id: 'tri-sym', tags: ['L2'], title: 'Regular sampling, symmetrical',
         text: 'The reference is sampled once per carrier period and held. Small baseband harmonics appear and the sidebands change. Compare with natural sampling at the same M and p.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'sym', M: 0.8, p: 15, out: 'vaz' } },
-      { id: 'tri-asym', title: 'Regular sampling, asymmetrical',
+      { id: 'tri-asym', tags: ['L2'], title: 'Regular sampling, asymmetrical',
         text: 'The reference is sampled at both carrier peaks, so each edge uses its own sample. Baseband harmonics are smaller than with symmetrical sampling. The lab converter uses this method.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 15, out: 'vaz' } },
-      { id: 'overmod', title: 'Overmodulation',
+      { id: 'overmod', tags: ['L2'], title: 'Overmodulation',
         text: 'With M > 1 the reference leaves the carrier band and pulses are dropped near the peaks. Low-order harmonics 3, 5, 7 … appear and the fundamental grows more slowly than M. Press Sweep M to watch it happen.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 1.4, p: 21, out: 'vaz' } },
     ],
@@ -539,10 +572,10 @@ window.PWM_EXAMPLES = [
     group: 'Single-phase H-bridge',
     source: 'Lecture 2',
     items: [
-      { id: 'hb-bip', title: 'Bipolar switching',
+      { id: 'hb-bip', tags: ['L2'], title: 'Bipolar switching',
         text: 'Both legs switch together (v_bz = −v_az), so v_ab jumps between +2Vdc and −2Vdc. The spectrum is the single-leg spectrum doubled, with the first harmonic group around p.',
         cfg: { topo: 'hb', hbmod: 'bip', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
-      { id: 'hb-uni', title: 'Unipolar switching',
+      { id: 'hb-uni', tags: ['L2'], title: 'Unipolar switching',
         text: 'Leg b compares −v* with the same carrier. In v_ab the groups around p, 3p, … cancel, the output has three levels and the first harmonic group moves to 2p. Show v_az to see that each leg still has them.',
         cfg: { topo: 'hb', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
     ],
@@ -551,34 +584,34 @@ window.PWM_EXAMPLES = [
     group: 'Three-phase, two-level',
     source: 'Lecture 3, lab',
     items: [
-      { id: 'line', title: 'Line-to-line voltage',
+      { id: 'line', tags: ['L3'], title: 'Line-to-line voltage',
         text: 'The carrier harmonics (h = p, 2p, …) and the sidebands whose offset is a multiple of 3 are the same in all three legs, so they cancel in v_ab. Switch between v_az and v_ab to compare.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
-      { id: 'thi', title: 'Third-harmonic injection, M = 1.15',
+      { id: 'thi', tags: ['L3'], title: 'Third-harmonic injection, M = 1.15',
         text: 'Adding −(M/6)·cos 3θ flattens the reference so it stays inside the carrier up to M = 2/√3 ≈ 1.155. The third harmonic is common mode and does not appear in v_ab.',
         cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'nat', M: 1.15, p: 21, out: 'vab' } },
-      { id: 'svm', title: 'SVM (centred zero vectors), M = 1.15',
+      { id: 'svm', tags: ['L3'], title: 'SVM (centred zero vectors), M = 1.15',
         text: 'The zero sequence −(max + min)/2 centres the zero vectors 000 and 111 in every half carrier period. Same linear range as third-harmonic injection, with slightly lower WTHD0.',
         cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'nat', M: 1.15, p: 21, out: 'vab' } },
-      { id: 'lab-thi9', title: 'Lab: +1/6 injection, M = 1.15, p = 9',
+      { id: 'lab-thi9', tags: ['Lab'], title: 'Lab: +1/6 injection, M = 1.15, p = 9',
         text: 'The lab reference spectra compare third-harmonic injection and SVM at a low pulse number. The lab sheet gives WTHD0 = 5.11 %; the explorer gives 5.09 %. Compare with the SVM case.',
         cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 1.15, p: 9, out: 'vab' } },
-      { id: 'lab-svm9', title: 'Lab: SVM, M = 1.15, p = 9',
+      { id: 'lab-svm9', tags: ['Lab'], title: 'Lab: SVM, M = 1.15, p = 9',
         text: 'Same M and p as the previous case with the SVM zero sequence. Centring the zero vectors lowers WTHD0: the lab sheet gives 4.94 %, the explorer 4.93 %.',
         cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'asym', M: 1.15, p: 9, out: 'vab' } },
-      { id: 'dpwm1', title: 'Discontinuous PWM (DPWM1)',
+      { id: 'dpwm1', tags: ['L3'], title: 'Discontinuous PWM (DPWM1)',
         text: 'Each phase is clamped to a dc rail for 60° around its positive and negative peaks, so each leg switches only 2/3 as often. Compare the commutation count with sine PWM at the same p.',
         cfg: { topo: '2l', strat: 'dpwm1', carrier: 'tri', samp: 'sym', M: 1, p: 24, out: 'vab' } },
-      { id: 'cur9', title: 'Phase current, p = 9 (lab 3.1)',
+      { id: 'cur9', tags: ['Lab'], title: 'Phase current, p = 9 (lab 3.1)',
         text: 'The R-L load attenuates each voltage harmonic by about 1/h, so the current is much smoother than the voltage. At a low pulse number the ripple is still clearly visible.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 9, out: 'ia' } },
-      { id: 'cur39', title: 'Phase current, p = 39 (lab 3.1)',
+      { id: 'cur39', tags: ['Lab'], title: 'Phase current, p = 39 (lab 3.1)',
         text: 'Same load as at p = 9. The harmonic groups move up to h ≈ 39 and 78, where the load impedance is high, so the current is almost sinusoidal.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 39, out: 'ia' } },
-      { id: 'flux-six', title: 'Stator flux, six-step (lab 3.4)',
+      { id: 'flux-six', tags: ['Lab'], title: 'Stator flux, six-step (lab 3.4)',
         text: 'Only the six active vectors are used, each for 60°. The flux ψ = ∫v dt moves along a hexagon.',
         cfg: { topo: '2l', strat: 'sixstep', out: 'vab' } },
-      { id: 'flux-pwm', title: 'Stator flux, PWM (lab 3.4)',
+      { id: 'flux-pwm', tags: ['Lab'], title: 'Stator flux, PWM (lab 3.4)',
         text: 'Active vectors alternate with zero vectors, which stop the flux. The trajectory follows a circle with a small ripple.',
         cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 0.8, p: 22, out: 'vab' } },
     ],
@@ -587,13 +620,13 @@ window.PWM_EXAMPLES = [
     group: 'Harmonic elimination',
     source: 'Lecture 3, computer assignment 2',
     items: [
-      { id: 'she5', title: 'Two-level, 5 angles',
+      { id: 'she5', tags: ['CA2', 'L3'], title: 'Two-level, 5 angles',
         text: 'Five switching angles per quarter period set the fundamental and remove the 5th, 7th, 11th and 13th harmonics (CA2, part b). Triplens remain in v_az but cancel in v_ab. Sweep M to see the angles move.',
         cfg: { topo: '2l', strat: 'she', nshe: 5, M: 0.8, out: 'vaz', hmax: '50' } },
-      { id: 'she7', title: 'Two-level, 7 angles',
+      { id: 'she7', tags: ['L3'], title: 'Two-level, 7 angles',
         text: 'Seven angles remove all non-triplen harmonics from the 5th to the 19th. In v_ab the first remaining harmonics are the 23rd and 25th.',
         cfg: { topo: '2l', strat: 'she', nshe: 7, M: 0.6, out: 'vab', hmax: '50' } },
-      { id: 'she3l', title: 'Three-level, 5 angles (CA2, part d)',
+      { id: 'she3l', tags: ['CA2', 'L5'], title: 'Three-level, 5 angles (CA2, part d)',
         text: 'The phase voltage steps between 0 and ±Vdc only. At M = 0.5 the solver finds the angles given in CA2 (0.8114 … 1.4223 rad). Compare WTHD0 of v_ab with the two-level pattern at the same M.',
         cfg: { topo: 'npc', strat: 'she', nshe: 5, M: 0.5, out: 'vab', hmax: '50' } },
     ],
@@ -602,36 +635,45 @@ window.PWM_EXAMPLES = [
     group: 'Multilevel',
     source: 'Lecture 5',
     items: [
-      { id: 'ml2', title: '2 levels, p = 11',
+      { id: 'ml2', tags: ['L5'], title: '2 levels, p = 11',
         text: 'Reference case for the level comparison in lecture 5: M = 0.9, carrier frequency 11·f1, line-to-line voltage.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.9, p: 11, out: 'vab' } },
-      { id: 'ml3', title: '3 levels (NPC), p = 11',
+      { id: 'ml3', tags: ['L5'], title: '3 levels (NPC), p = 11',
         text: 'Same carrier frequency, two level-shifted carriers. The steps are half as large and the harmonic amplitudes drop accordingly.',
         cfg: { topo: 'npc', arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
-      { id: 'ml5', title: '5 levels (cascaded H-bridge), p = 11',
+      { id: 'ml5', tags: ['L5'], title: '5 levels (cascaded H-bridge), p = 11',
         text: 'Two cells per phase, four level-shifted carriers in phase (PD). WTHD0 is about half the three-level value.',
         cfg: { topo: 'chb', cells: 2, arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
-      { id: 'ml7', title: '7 levels (cascaded H-bridge), p = 11',
+      { id: 'ml7', tags: ['L5'], title: '7 levels (cascaded H-bridge), p = 11',
         text: 'Three cells per phase; the voltage is close to a staircase sine wave. At this low carrier frequency the outer bands are crossed only briefly, so WTHD0 is no better than with five levels. Raise p and compare again.',
         cfg: { topo: 'chb', cells: 3, arr: 'pd', strat: 'spwm', M: 0.9, p: 11, out: 'vab' } },
-      { id: 'pd', title: 'Carrier disposition: PD',
+      { id: 'pd', tags: ['L5'], title: 'Carrier disposition: PD',
         text: 'All carriers in phase. The phase voltage has a large harmonic exactly at h = p. It is common mode and cancels in v_ab, which is why PD gives the lowest line-to-line distortion.',
         cfg: { topo: 'chb', cells: 2, arr: 'pd', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
-      { id: 'pod', title: 'Carrier disposition: POD',
+      { id: 'pod', tags: ['L5'], title: 'Carrier disposition: POD',
         text: 'Carriers above zero are in antiphase with those below. The harmonic at h = p disappears, and its energy moves into sidebands that do not cancel between the phases.',
         cfg: { topo: 'chb', cells: 2, arr: 'pod', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
-      { id: 'apod', title: 'Carrier disposition: APOD',
+      { id: 'apod', tags: ['L5'], title: 'Carrier disposition: APOD',
         text: 'Adjacent carriers alternate in phase. Compare its sideband pattern with PD and POD at the same M and p.',
         cfg: { topo: 'chb', cells: 2, arr: 'apod', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
-      { id: 'ps', title: 'Phase-shifted carriers (PS)',
+      { id: 'ps', tags: ['L5'], title: 'Phase-shifted carriers (PS)',
         text: 'Each cell has its own carrier, shifted by 180°/N. The cell harmonics cancel up to h = 2Np, here 40, and every cell switches equally often. Compare the cell commutation counts with PD.',
         cfg: { topo: 'chb', cells: 2, arr: 'ps', strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
-      { id: 'fc3', title: 'Flying capacitor, 3 levels',
+      { id: 'fc3', tags: ['L5'], title: 'Flying capacitor, 3 levels',
         text: 'Two switch pairs per leg and one flying capacitor charged to Vdc. The pairs follow carriers 180° apart, so both switch equally often and the capacitor stays balanced on average. The first harmonic group of v_az is at 2p.',
         cfg: { topo: 'fc', fcn: 2, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
-      { id: 'fc4', title: 'Flying capacitor, 4 levels',
+      { id: 'fc4', tags: ['L5'], title: 'Flying capacitor, 4 levels',
         text: 'Three switch pairs with carriers 120° apart and two nested flying capacitors (4Vdc/3 and 2Vdc/3). The phase voltage has four levels and the first harmonic group moves to 3p = 30. Animate the circuit to see which pair switches at each step.',
         cfg: { topo: 'fc', fcn: 3, strat: 'spwm', M: 0.8, p: 10, out: 'vaz', hmax: '50' } },
+      { id: 'mmc-nlm', tags: ['L5'], title: 'MMC, nearest level modulation',
+        text: 'Eight submodules per arm. Each arm inserts the whole number of submodules closest to N(1 ∓ v*)/2, so v_az is a nine-level staircase with no carrier. Common in HVDC converters with many submodules. Animate the circuit to watch the arms exchange submodules.',
+        cfg: { topo: 'mmc', smn: 8, mmcmod: 'nlm', strat: 'spwm', M: 0.9, out: 'vaz', hmax: '50' } },
+      { id: 'mmc-ps1', tags: ['L5'], title: 'MMC, phase-shifted carriers, N + 1 levels',
+        text: 'Four submodules per arm with carriers 90° apart; the lower arm is the complement of the upper. v_az has five levels and the first harmonic group sits at Np = 40.',
+        cfg: { topo: 'mmc', smn: 4, mmcmod: 'ps1', strat: 'spwm', M: 0.8, p: 10, out: 'vaz' } },
+      { id: 'mmc-ps2', tags: ['L5'], title: 'MMC, phase-shifted carriers, 2N + 1 levels',
+        text: 'Same converter, but the lower-arm carriers are shifted a further 45°. The inserted count per leg then varies by one, the arm inductors take the difference, and v_az gets nine levels with the first harmonic group at 2Np = 80.',
+        cfg: { topo: 'mmc', smn: 4, mmcmod: 'ps2', strat: 'spwm', M: 0.8, p: 10, out: 'vaz' } },
     ],
   },
 ];
@@ -793,15 +835,17 @@ window.PWM_EXAMPLES = [
     npc: ['spwm', 'thi', 'svm', 'she'],
     chb: ['spwm', 'thi', 'svm'],
     fc: ['spwm', 'thi', 'svm'],
+    mmc: ['spwm', 'thi', 'svm'],
   };
   const ARRS = { npc: ['pd', 'pod'], chb: ['ps', 'pd', 'pod', 'apod'] };
-  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'] };
+  const OUTS = { '2l': ['vaz', 'vab', 'van', 'ia'], hb: ['vaz', 'vab', 'ia'], npc: ['vaz', 'vab', 'van', 'ia'], chb: ['vaz', 'vab', 'van', 'ia'], fc: ['vaz', 'vab', 'van', 'ia'], mmc: ['vaz', 'vab', 'van', 'ia'] };
   const TOPO_TEXT = {
     '2l': 'Two switches per leg. Each phase connects to +V<sub>dc</sub> or −V<sub>dc</sub>.',
     hb: 'Two legs feed one load between a and b. v<sub>ab</sub> = v<sub>az</sub> − v<sub>bz</sub> can take ±2V<sub>dc</sub> and 0.',
     npc: 'Four switches and two clamp diodes per leg. Each phase connects to +V<sub>dc</sub>, the midpoint z, or −V<sub>dc</sub>.',
     chb: 'N H-bridge cells in series per phase, each with its own dc source V<sub>dc</sub>/N. 2N + 1 levels per phase.',
     fc: 'N complementary switch pairs per leg with N − 1 flying capacitors charged to 2V<sub>dc</sub>·k/N. N + 1 levels per phase. Phase-shifted carriers, one per switch pair.',
+    mmc: 'Each phase leg has an upper and a lower arm of N half-bridge submodules (capacitor 2V<sub>dc</sub>/N each) and an arm inductor. An inserted submodule adds its capacitor voltage, a bypassed one adds 0. With n<sub>u</sub> and n<sub>l</sub> inserted, v<sub>az</sub> = (n<sub>l</sub> − n<sub>u</sub>)·V<sub>dc</sub>/N. Capacitor voltages are assumed constant and circulating current is ignored.',
   };
   const DESCRIPTION = {
     spwm: () => 'v*<sub>x</sub> = M cos(ωt − φ<sub>x</sub>). Linear up to M = 1.',
@@ -818,12 +862,12 @@ window.PWM_EXAMPLES = [
   const OUT_LABEL = { vaz: 'v_az', vab: 'v_ab', van: 'v_an', ia: 'i_a' };
 
   const DEFAULTS = {
-    topo: '2l', cells: '2', fcn: '2', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
+    topo: '2l', cells: '2', fcn: '2', smn: '4', mmcmod: 'ps1', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
     M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
   };
   const ctlIds = Object.keys(DEFAULTS);
-  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'cur']);
-  const computeKeys = ['topo', 'cells', 'fcn', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
   let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
 
   function params() {
@@ -835,9 +879,9 @@ window.PWM_EXAMPLES = [
   // ---------- buffers ----------
   const sw = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)];  // phase (or leg) output, −1 … +1
   const ref = [new Float64Array(NS), new Float64Array(NS), new Float64Array(NS)]; // references as compared
-  const cars = Array.from({ length: 6 }, () => new Float64Array(NS));            // carriers
-  const cellA = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg A on
-  const cellB = [0, 1, 2].map(() => [0, 1, 2].map(() => new Int8Array(NS)));      // CHB: upper switch of leg B on
+  const cars = Array.from({ length: 16 }, () => new Float64Array(NS));           // carriers
+  const cellA = [0, 1, 2].map(() => Array.from({ length: 8 }, () => new Int8Array(NS))); // CHB leg A upper on / FC pair on / MMC upper-arm SM inserted
+  const cellB = [0, 1, 2].map(() => Array.from({ length: 8 }, () => new Int8Array(NS))); // CHB leg B upper on / MMC lower-arm SM inserted
   const y = new Float64Array(NS);       // selected output
   const fund = new Float64Array(NS);    // its fundamental
   const re = new Float64Array(NS), im = new Float64Array(NS);
@@ -975,9 +1019,11 @@ window.PWM_EXAMPLES = [
     const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
     const phase = [0, -TWO_PI / 3, TWO_PI / 3];
     const M = p.M, topo = p.topo, N = p.cells, Nf = p.fcn, fc = topo === 'fc';
+    const mmc = topo === 'mmc', Nm = p.smn, mm = p.mmcmod;
     const threePh = topo !== 'hb';
-    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
-    res.fc = fc;
+    res.levels = topo === 'npc' ? 3 : topo === 'chb' ? 2 * N + 1 : fc ? Nf + 1 : mmc ? (mm === 'ps2' ? 2 * Nm + 1 : Nm + 1)
+      : topo === 'hb' && p.hbmod === 'uni' ? 3 : 2;
+    res.fc = fc; res.mmc = mmc;
     for (let k = 0; k < 3; k++) { ref[k].fill(NaN); }
 
     if (CARRIER_BASED.has(p.strat)) {
@@ -990,13 +1036,16 @@ window.PWM_EXAMPLES = [
       }
       const ps = topo === 'chb' && p.arr === 'ps';
       const arr = topo === 'npc' ? (p.arr === 'pod' ? 'pod' : 'pd') : p.arr;
-      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : ps ? N : 2 * N;
+      const K = twoLevelCarrier ? 1 : topo === 'npc' ? 2 : fc ? Nf : mmc ? (mm === 'nlm' ? 0 : mm === 'ps1' ? Nm : 2 * Nm) : ps ? N : 2 * N;
       res.nCars = K; res.ps = ps;
       const cv = new Float64Array(K);
       for (let i = 0; i < NS; i++) {
         const u = (p.p * i) / NS, fu = u - Math.floor(u);
         if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
         else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        else if (mmc) { // upper-arm carriers 360°/N apart; for 2N + 1 levels the lower arm's set is shifted by a further 180°/N
+          for (let j = 0; j < K; j++) { const v = u + (j % Nm) / Nm + (j >= Nm ? 1 / (2 * Nm) : 0); cv[j] = carrierAt('tri', v - Math.floor(v)); }
+        }
         else if (ps) for (let j = 0; j < N; j++) { const v = u + j / (2 * N); cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else {
           const t = carrierAt('tri', fu);
@@ -1028,7 +1077,19 @@ window.PWM_EXAMPLES = [
           ref[k][i] = r;
           if (topo === '2l') sw[k][i] = 2 * gt(r, cv[0]) - 1;
           else if (topo === 'npc') sw[k][i] = -1 + gt(r, cv[0]) + gt(r, cv[1]);
-          else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
+          else if (mmc) { // upper arm inserts ≈ N(1 − v*)/2 submodules, lower arm ≈ N(1 + v*)/2
+            let nu = 0, nl = 0;
+            if (mm === 'nlm') {
+              nl = Math.max(0, Math.min(Nm, Math.round((Nm * (1 + r)) / 2))); nu = Nm - nl;
+              for (let j = 0; j < Nm; j++) { cellA[k][j][i] = j < nu ? 1 : 0; cellB[k][j][i] = j < nl ? 1 : 0; }
+            } else {
+              for (let j = 0; j < Nm; j++) {
+                const U = gt(-r, cv[j]), Lw = mm === 'ps1' ? 1 - U : gt(r, cv[Nm + j]);
+                cellA[k][j][i] = U; cellB[k][j][i] = Lw; nu += U; nl += Lw;
+              }
+            }
+            sw[k][i] = (nl - nu) / Nm;
+          } else if (fc) { // switch pair j (outermost first) follows its own phase-shifted carrier
             let s = 0;
             for (let j = 0; j < Nf; j++) { const A = gt(r, cv[j]); cellA[k][j][i] = A; s += A; }
             sw[k][i] = -1 + (2 * s) / Nf;
@@ -1052,6 +1113,9 @@ window.PWM_EXAMPLES = [
         res.info.push(`M is above the linear limit (${LINEAR_LIMIT[p.strat].toFixed(3)}): pulses are dropped near the peaks and low-order harmonics appear.`);
       }
       if (fc) res.info.push(`The switch pairs' carriers are shifted by ${(360 / Nf).toFixed(0)}°, so each pair switches equally and the flying capacitors stay balanced on average (their voltages are assumed constant). The first harmonic group of v_az is at h = ${Nf}p = ${Nf * p.p}.`);
+      if (mmc && mm === 'nlm') res.info.push(`Nearest level modulation: each arm inserts the whole number of submodules closest to N(1 ∓ v*)/2. No carrier is used, so p has no effect; v_az is a staircase with N + 1 = ${Nm + 1} levels. A real converter picks which submodules to insert by sorting the capacitor voltages; here they are taken in a fixed order.`);
+      if (mmc && mm === 'ps1') res.info.push(`Phase-shifted carriers 360°/N apart, one per submodule. The lower arm is the complement of the upper, so N submodules are inserted per leg at all times and v_az has N + 1 = ${Nm + 1} levels. The first harmonic group of v_az is at h = Np = ${Nm * p.p}.`);
+      if (mmc && mm === 'ps2') res.info.push(`The lower-arm carriers are shifted a further 180°/N against the upper arm. The number of inserted submodules per leg then varies between N − 1 and N + 1 (the arm inductors take the difference), and v_az has 2N + 1 = ${2 * Nm + 1} levels.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
     } else if (p.strat === 'sixstep') {
@@ -1129,6 +1193,7 @@ window.PWM_EXAMPLES = [
     res.wthd = Math.sqrt(w2) / amp[1];
     const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
     res.commutations = transitions(sw[0]);
+    if (mmc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nm }, (_, j) => transitions(cellA[0][j]));
     if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
     if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
 
@@ -1287,7 +1352,7 @@ window.PWM_EXAMPLES = [
     const ry = Math.max(1.25, niceCeil(rmax * 1.08));
     axes(ctx, top, 0, p.view, -ry, ry, { xStep: degStep, xLabels: false, yStep: ry > 1.5 ? 1 : 0.5 });
     const carrierShown = CARRIER_BASED.has(p.strat);
-    if (carrierShown) for (let j = 0; j < res.nCars; j++) trace(ctx, top, cars[j], 0, i1, -ry, ry, colors['c-carrier'], 1);
+    if (res.nCars) for (let j = 0; j < res.nCars; j++) trace(ctx, top, cars[j], 0, i1, -ry, ry, colors['c-carrier'], 1);
     const tItems = [[threePh ? 'v*a' : 'v*', colors['c-message']]];
     if (threePh && allPhases) {
       trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6);
@@ -1296,8 +1361,8 @@ window.PWM_EXAMPLES = [
     }
     if (!threePh && p.hbmod === 'uni') { trace(ctx, top, ref[1], 0, i1, -ry, ry, colors['c-aux'], 1.6); tItems.push(['−v*', colors['c-aux']]); }
     trace(ctx, top, ref[0], 0, i1, -ry, ry, colors['c-message'], 1.8, carrierShown ? null : [6, 4]);
-    if (carrierShown) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
-    header(ctx, top, carrierShown ? 'Reference and carrier' : 'Fundamental reference', tItems);
+    if (res.nCars) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
+    header(ctx, top, !carrierShown ? 'Fundamental reference' : res.nCars ? 'Reference and carrier' : 'Reference', tItems);
 
     // bottom: output
     let ymax;
@@ -1323,7 +1388,9 @@ window.PWM_EXAMPLES = [
   function hmaxFor(p, res) {
     if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
     if (!CARRIER_BASED.has(p.strat)) return 50;
-    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p : 3 * p.p;
+    if (res.mmc && p.mmcmod === 'nlm') return 50;
+    const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p
+      : res.mmc ? (p.mmcmod === 'ps2' ? 2 : 1) * p.smn * p.p + 2 * p.p : 3 * p.p;
     return Math.min(200, Math.max(40, Math.ceil((target + 8) / 10) * 10));
   }
 
@@ -1347,7 +1414,7 @@ window.PWM_EXAMPLES = [
     ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
 
     // carrier multiples
-    if (CARRIER_BASED.has(p.strat)) {
+    if (res.nCars) {
       ctx.strokeStyle = colors['c-carrier']; ctx.fillStyle = colors.muted; ctx.setLineDash([3, 3]);
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       const showLabels = X(p.p) - X(0) > 16;
@@ -1527,6 +1594,12 @@ window.PWM_EXAMPLES = [
     for (let i = 0; i < n; i++) d += ` a${step / 2} ${step / 2} 0 0 1 ${step} 0`;
     return `<path d="${d}" class="sch-w"/>`;
   }
+  function COILV(x, y0, len) { // vertical inductor from y0 down to y0+len
+    const n = 4, step = len / n;
+    let d = `M${x} ${y0}`;
+    for (let i = 0; i < n; i++) d += ` a${step / 2} ${step / 2} 0 0 1 0 ${step}`;
+    return `<path d="${d}" class="sch-w"/>`;
+  }
   function RL(x, yy) { // resistor + inductor from x to x+76
     return `<rect x="${x}" y="${yy - 5}" width="26" height="10" class="sch-r"/>` + W(x + 26, yy, x + 36, yy) + COIL(x + 36, yy, 40);
   }
@@ -1553,8 +1626,9 @@ window.PWM_EXAMPLES = [
     const sgn = v > 0 ? '+' : '−', a = Math.abs(v);
     if (Math.abs(a - 1) < 1e-9) return sgn + 'V<sub>dc</sub>';
     if (Math.abs(a - 2) < 1e-9) return sgn + '2V<sub>dc</sub>';
-    const n = Math.round(a * N);
-    return `${sgn}${n === 1 ? '' : n}V<sub>dc</sub>/${N}`;
+    let n = Math.round(a * N), d = N;
+    for (let g = n; g > 1; g--) if (n % g === 0 && d % g === 0) { n /= g; d /= g; break; }
+    return d === 1 ? `${sgn}${n}V<sub>dc</sub>` : `${sgn}${n === 1 ? '' : n}V<sub>dc</sub>/${d}`;
   }
   const fmtSvg = (s) => s.replace(/<sub>(.*?)<\/sub>(.*)$/, '<tspan class="sch-sub" dy="3">$1</tspan><tspan dy="-3">$2</tspan>');
 
@@ -1622,7 +1696,7 @@ window.PWM_EXAMPLES = [
       });
       svg += LOAD3(572, [120, 160, 200]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], Nf)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], Nf)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], Nf)}`;
-    } else { // chb
+    } else if (topo === 'chb') {
       const top = 46, pitch = 100, H = top + N * pitch + 24;
       vb = `0 0 640 ${H}`;
       const ybus = top + N * pitch - 6;
@@ -1647,7 +1721,37 @@ window.PWM_EXAMPLES = [
       svg += LOAD3(512, [60, 100, 140]);
       status = `v<sub>az</sub> = ${fmtLevel(lvl[0], N)}, v<sub>bz</sub> = ${fmtLevel(lvl[1], N)}, v<sub>cz</sub> = ${fmtLevel(lvl[2], N)}`;
     }
-    $('circuit').innerHTML = `<svg viewBox="${vb}" role="img" aria-label="Converter circuit with switch states at the time cursor">${svg}</svg>`;
+    if (topo === 'mmc') {
+      // per phase: P rail, upper arm of N submodules, arm inductor, output, arm inductor, lower arm, N rail
+      const Nm = p.smn, A = Nm * 20, yP = 30, yUe = yP + 10 + A, ym = yUe + 40, yL = ym + 46, yN = yL + A + 10;
+      const den = p.mmcmod === 'ps2' ? Nm : Nm;
+      svg = DCLINK(40, yP, yN) + W(40, yP, 450, yP) + W(40, yN, 450, yN);
+      const counts = [];
+      ['a', 'b', 'c'].forEach((n, k) => {
+        const x = 190 + 130 * k;
+        let nu = 0, nl = 0;
+        svg += DOT(x, yP) + DOT(x, yN) + W(x, yP, x, yUe + 4) + COILV(x, yUe + 4, 24) + W(x, yUe + 28, x, ym + 12) + COILV(x, ym + 12, 24) + W(x, ym + 36, x, yN);
+        for (let j = 0; j < Nm; j++) {
+          const U = cellA[k][j][ic] === 1, L = cellB[k][j][ic] === 1;
+          nu += U; nl += L;
+          svg += `<rect x="${x - 15}" y="${yP + 13 + 20 * j}" width="30" height="14" rx="3" class="sch-sm${U ? ' on' : ''}"/>`;
+          svg += `<rect x="${x - 15}" y="${yL + 3 + 20 * j}" width="30" height="14" rx="3" class="sch-sm${L ? ' on' : ''}"/>`;
+        }
+        counts.push([nu, nl]);
+        svg += TX(x + 21, yP + 14 + A / 2, `${nu}/${Nm}`, 'sch-s', 'start') + TX(x + 21, yL + 4 + A / 2, `${nl}/${Nm}`, 'sch-s', 'start');
+        svg += DOT(x, ym) + W(x, ym, x + 24, ym) + TX(x + 28, ym + 4, n, 'sch-l', 'start') + TX(x + 28, ym + 22, fmtSvg(fmtLevel(lvl[k], den)), 'sch-v', 'start');
+        if (k === 0) {
+          svg += TX(x - 22, yP + 14 + A / 2, 'upper', 'sch-s', 'end') + TX(x - 22, yL + 4 + A / 2, 'lower', 'sch-s', 'end');
+          svg += TX(x - 14, yUe + 20, 'L', 'sch-s', 'end') + TX(x - 14, ym + 28, 'L', 'sch-s', 'end');
+        }
+      });
+      svg += LOAD3(540, [ym - 40, ym, ym + 40]);
+      svg += `<rect x="540" y="${yN - 14}" width="12" height="9" rx="2" class="sch-sm on"/>` + TX(558, yN - 6, 'inserted', 'sch-s', 'start') +
+        `<rect x="612" y="${yN - 14}" width="12" height="9" rx="2" class="sch-sm"/>` + TX(630, yN - 6, 'bypassed', 'sch-s', 'start');
+      vb = `0 0 690 ${yN + 22}`;
+      status = `Phase a: ${counts[0][0]} of ${Nm} upper and ${counts[0][1]} of ${Nm} lower submodules inserted, v<sub>az</sub> = ${fmtLevel(lvl[0], den)}`;
+    }
+    $('circuit').innerHTML = `<svg viewBox="${vb}" class="${topo === 'mmc' && p.smn > 4 ? 'tall' : ''}" role="img" aria-label="Converter circuit with switch states at the time cursor">${svg}</svg>`;
     $('circuitStatus').innerHTML = `At ω₁t = ${p.cur.toFixed(0)}°: ${status}`;
   }
 
@@ -1670,7 +1774,7 @@ window.PWM_EXAMPLES = [
       }
       if (p.topo === '2l' || p.topo === 'hb') rows.push(['Commutations / period (leg a)', String(res.commutations)]);
       else rows.push(['Level changes / period (phase a)', String(res.commutations)]);
-      if (res.cellComm) rows.push([p.topo === 'fc' ? 'Commutations / period, switch pairs of phase a' : 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
+      if (res.cellComm) rows.push([{ fc: 'Commutations / period, switch pairs of phase a', mmc: 'Commutations / period, upper-arm submodules of phase a' }[p.topo] || 'Commutations / period, cells of phase a', res.cellComm.join(', ')]);
       if (res.angles) rows.push(['Angles (°)', res.angles.map((a) => ((a * 180) / Math.PI).toFixed(2)).join(', ')]);
     }
     $('readout').innerHTML = rows.map(([k, v]) => `<div><dt>${k.replace(/_(\w+)/, '<sub>$1</sub>')}</dt><dd>${v}</dd></div>`).join('');
@@ -1702,6 +1806,7 @@ window.PWM_EXAMPLES = [
       el.hidden = !(okS && okT);
     });
     $('phi-ctl').hidden = p.out !== 'ia';
+    if (p.topo === 'mmc' && p.mmcmod === 'nlm') $('p-ctl').hidden = true; // no carrier
     $('M-out').textContent = p.M.toFixed(2);
     $('p-out').textContent = String(p.p);
     $('phi-out').textContent = p.phi + '°';
@@ -1733,22 +1838,46 @@ window.PWM_EXAMPLES = [
   function writeHash() {
     const q = new URLSearchParams();
     for (const id of ctlIds) q.set(id, $(id).value);
+    if ($('exSrc').value) q.set('src', $('exSrc').value);
     if ($('example').value) q.set('ex', $('example').value);
     history.replaceState(null, '', '#' + q.toString());
   }
   function readHash() {
     const q = new URLSearchParams(location.hash.slice(1));
     for (const id of ctlIds) if (q.has(id)) $(id).value = q.get(id);
+    const src = q.get('src') || '';
+    $('exSrc').value = SOURCES.some((s) => s.id === src) ? src : '';
+    fillExamples();
     showExample(q.get('ex') || '');
   }
 
-  // ---------- examples ----------
+  // ---------- examples, filtered by lecture or assignment ----------
+  const SOURCES = window.PWM_SOURCES || [];
+  const SRC = new Map(SOURCES.map((s) => [s.id, s]));
   const EXAMPLES = new Map();
-  for (const g of window.PWM_EXAMPLES || []) for (const it of g.items) EXAMPLES.set(it.id, { ...it, group: g.group, source: g.source });
+  for (const g of window.PWM_EXAMPLES || []) for (const it of g.items) EXAMPLES.set(it.id, { ...it, group: g.group });
+  function fillExamples() {
+    const src = $('exSrc').value, sel = $('example'), cur = sel.value;
+    sel.innerHTML = '';
+    const head = document.createElement('option');
+    head.value = ''; head.textContent = src ? `${SRC.get(src).label}: choose…` : 'Examples…';
+    sel.appendChild(head);
+    for (const s of src ? [SRC.get(src)] : SOURCES) {
+      const og = document.createElement('optgroup');
+      og.label = `${s.label} · ${s.topic}`;
+      for (const ex of EXAMPLES.values()) if (ex.tags.includes(s.id)) {
+        const o = document.createElement('option'); o.value = ex.id; o.textContent = ex.title; og.appendChild(o);
+      }
+      if (og.children.length) sel.appendChild(og);
+    }
+    sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+  }
   function showExample(id) {
     const ex = EXAMPLES.get(id);
+    if (ex && $('exSrc').value && !ex.tags.includes($('exSrc').value)) { $('exSrc').value = ''; fillExamples(); }
     $('example').value = ex ? id : '';
-    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${ex.group} · ${ex.source}</p>` : '');
+    const where = ex ? ex.tags.map((t) => `${SRC.get(t).label} (${SRC.get(t).topic})`).join(' · ') : '';
+    window.AtlasUI.setTip('exTip', ex ? `<p><b>${ex.title}</b><br>${ex.text.replace(/\b([vi])_(\w+)/g, '$1<sub>$2</sub>')}</p><p style="color:var(--text-3)">${where}</p>` : '');
   }
   function loadExample(id) {
     const ex = EXAMPLES.get(id);
@@ -1765,15 +1894,11 @@ window.PWM_EXAMPLES = [
     const UI = window.AtlasUI;
     UI.setToggle($('sweep'), false, 'Stop sweep', 'Sweep M', 'pause', 'activity');
     UI.setToggle($('play'), false, 'Pause', 'Animate', 'pause', 'play');
-    const sel = $('example');
-    for (const g of window.PWM_EXAMPLES || []) {
-      const og = document.createElement('optgroup');
-      og.label = g.group;
-      for (const it of g.items) { const o = document.createElement('option'); o.value = it.id; o.textContent = it.title; og.appendChild(o); }
-      sel.appendChild(og);
-    }
+    const sel = $('example'), srcSel = $('exSrc');
+    for (const sr of SOURCES) { const o = document.createElement('option'); o.value = sr.id; o.textContent = sr.label; o.title = sr.topic; srcSel.appendChild(o); }
     readHash();
     sel.addEventListener('change', () => loadExample(sel.value));
+    srcSel.addEventListener('change', () => { fillExamples(); showExample(sel.value); writeHash(); });
     for (const id of ctlIds) $(id).addEventListener('input', () => { writeHash(); schedule(); });
     $('allph').addEventListener('click', (e) => { allPhases = !allPhases; e.currentTarget.setAttribute('aria-pressed', allPhases); schedule(); });
     $('scale').addEventListener('click', (e) => { dbScale = !dbScale; e.currentTarget.setAttribute('aria-pressed', dbScale); schedule(); });

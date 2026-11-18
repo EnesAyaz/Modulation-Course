@@ -4,13 +4,15 @@ Interactive PWM visualisation for EJ2311 *Modulation of Power Electronic Convert
 Live at https://enesayaz.github.io/Modulation-Course/.
 
 - Converters: three-phase two-level, single-phase H-bridge (bipolar/unipolar), three-level NPC,
-  cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers), and flying capacitor with 3 or 4
-  levels (phase-shifted carriers).
+  cascaded H-bridge with 1–3 cells (PS, PD, POD, APOD carriers), flying capacitor with 3 or 4
+  levels (phase-shifted carriers), and modular multilevel converter with 2–8 submodules per arm
+  (nearest level modulation, or phase-shifted carriers with N + 1 or 2N + 1 levels).
 - Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
   and two- and three-level selective harmonic elimination.
 - Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
   spectrum, THD / WTHD0, R-L load current, voltage vectors and stator flux.
-- 31 examples from the lectures, computer assignments and lab, in the picker at the top.
+- 34 examples from the lectures, computer assignments and lab. In the top bar, students first pick a
+  lecture or assignment, then one of its examples.
 
 The page follows the Atlas style: theme tokens, light/dark/system themes, short labels, and every
 explanation behind an (i) button.
@@ -42,18 +44,19 @@ python tools/build.py
 
 ## Adding an example
 
-Add an item to `assets/js/examples.js`: an `id`, a `title`, a `text` (use `v_ab` for subscripts) and
-a `cfg` with the explorer settings, then rebuild.
+Add an item to `assets/js/examples.js`: an `id`, `tags` naming its sources (ids from `PWM_SOURCES`,
+e.g. `['L5', 'CA2']`), a `title`, a `text` (use `v_ab` for subscripts) and a `cfg` with the explorer
+settings, then rebuild. A new lecture or assignment is one more entry in `PWM_SOURCES`.
 
 ## Linking to settings
 
 Settings are kept in the URL, e.g. `index.html#topo=chb&cells=2&arr=ps&strat=spwm&M=0.8&p=10&out=vaz`.
 The link button next to the spectrum copies the current one.
 
-Keys: `topo` (`2l hb npc chb fc`), `cells` (`1 2 3`), `fcn` (`2 3`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
+Keys: `topo` (`2l hb npc chb fc mmc`), `cells` (`1 2 3`), `fcn` (`2 3`), `smn` (`2 4 6 8`), `mmcmod` (`nlm ps1 ps2`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
 `strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
 `M`, `p`, `nshe` (`1 3 5 7`), `out` (`vaz vab van ia`), `phi` (load angle, degrees),
-`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), `ex` (example id).
+`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), `src` (lecture or assignment filter), `ex` (example id).
 
 ## The Source/ folder
 
