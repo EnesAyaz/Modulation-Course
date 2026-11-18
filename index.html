@@ -352,6 +352,9 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
             <option value="sixstep">Six-step</option>
             <option value="she">Selective harmonic elimination</option>
           </optgroup>
+          <optgroup label="Closed loop">
+            <option value="dtc">Direct torque control (PMSM)</option>
+          </optgroup>
         </select>
       </div>
       <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
@@ -386,6 +389,42 @@ canvas.plot { display: block; width: 100%; touch-action: pan-y; }
       <div class="ctl" id="p-ctl" data-for="spwm thi svm dpwm1">
         <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
         <input type="range" id="p" min="3" max="60" step="1" value="21">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <label class="lbl" for="cph">Carrier phase <button class="tip" data-tip="Shifts the carrier against the reference, in degrees of one carrier period. With a sawtooth carrier and a low p the fundamental depends on this phase (assignment 2, part c)."></button><output id="cph-out"></output></label>
+        <input type="range" id="cph" min="0" max="359" step="1" value="0">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <label class="lbl" for="tmin">Minimum pulse width <button class="tip" data-tip="Pulses shorter than this are cancelled, as when dead time limits the shortest pulse. Given in µs at f<sub>1</sub> = 50 Hz (assignment 2, part j). 0 = no limit."></button><output id="tmin-out"></output></label>
+        <input type="range" id="tmin" min="0" max="300" step="5" value="0">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <div class="lbl">Torque reference</div>
+        <select id="tstep" hidden>
+          <option value="const" data-short="Constant" selected>Constant</option>
+          <option value="step" data-short="Step 100 → T*">Step from 100 Nm to T* halfway</option>
+        </select>
+        <div class="seg" data-select="tstep"></div>
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="tq">T* <output id="tq-out"></output></label>
+        <input type="range" id="tq" min="0" max="600" step="10" value="300">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="dtb">Torque band ΔT <output id="dtb-out"></output></label>
+        <input type="range" id="dtb" min="2" max="120" step="1" value="20">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="psr">Flux reference ψ* <output id="psr-out"></output></label>
+        <input type="range" id="psr" min="0.9" max="1.3" step="0.01" value="1.05">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="dpb">Flux band Δψ <output id="dpb-out"></output></label>
+        <input type="range" id="dpb" min="0.002" max="0.1" step="0.002" value="0.02">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="rpm">Speed <output id="rpm-out"></output></label>
+        <input type="range" id="rpm" min="100" max="2000" step="10" value="1000">
       </div>
       <div class="ctl" data-for="spwm thi svm dpwm1 she">
         <button type="button" class="btn" id="sweep" aria-pressed="false"></button>
@@ -538,11 +577,15 @@ window.PWM_SOURCES = [
   { id: 'L1', label: 'Lecture 1', topic: 'Basics, harmonic distortion' },
   { id: 'L2', label: 'Lecture 2', topic: 'Carrier-based modulation, single-phase converters' },
   { id: 'L3', label: 'Lecture 3', topic: 'Three-phase PWM, zero vectors, harmonic elimination' },
+  { id: 'L4', label: 'Lecture 4', topic: 'Tolerance band, direct torque control' },
   { id: 'L5', label: 'Lecture 5', topic: 'Multilevel modulation' },
-  { id: 'CA1', label: 'Computer assignment 1', topic: 'FFT, WTHD0, sawtooth carrier' },
-  { id: 'CA2', label: 'Computer assignment 2', topic: 'Harmonic elimination' },
+  { id: 'PA', label: 'Pre-assignment', topic: 'FFT, WTHD0, sawtooth carrier' },
+  { id: 'A2', label: 'Assignment 2', topic: 'Carrier PWM: phase leg, full bridge, three-phase' },
+  { id: 'A3', label: 'Assignment 3', topic: 'Harmonic elimination, direct torque control' },
   { id: 'Lab', label: 'Laboratory exercise', topic: 'Three-phase SiC converter and induction machine' },
 ];
+// links made before the assignments were renamed
+window.PWM_SOURCE_ALIAS = { CA1: 'PA', CA2: 'A3' };
 window.PWM_EXAMPLES = [
   {
     group: 'One phase leg',
@@ -551,8 +594,8 @@ window.PWM_EXAMPLES = [
       { id: 'sixstep', tags: ['L1'], title: 'Six-step square wave',
         text: 'Each leg is a square wave. v_az contains every odd harmonic with amplitude 4/(hπ)·Vdc. Switch the output to v_ab: the triplen harmonics cancel and only h = 6k ± 1 remain.',
         cfg: { topo: '2l', strat: 'sixstep', out: 'vaz', hmax: '50' } },
-      { id: 'ca1-saw', tags: ['CA1', 'L2'], title: 'Sawtooth carrier (CA1)',
-        text: 'Computer assignment 1 settings: single-edge modulation with M = 0.75 and p = 11. Every carrier multiple mp has sidebands on both sides, with amplitudes set by Bessel functions. Compare the bars with your analytical spectrum.',
+      { id: 'ca1-saw', tags: ['PA', 'L2'], title: 'Sawtooth carrier, M = 0.75, p = 11',
+        text: 'Pre-assignment settings: single-edge modulation with M = 0.75 and p = 11. Every carrier multiple mp has sidebands on both sides, with amplitudes set by Bessel functions. Compare the bars with your analytical spectrum.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.75, p: 11, out: 'vaz', hmax: '50' } },
       { id: 'tri-nat', tags: ['L2'], title: 'Triangle carrier, natural sampling',
         text: 'Double-edge modulation, p = 15, M = 0.8. Around odd carrier multiples (15, 45) only even-offset sidebands appear; around even multiples (30, 60) only odd-offset sidebands. There are no baseband harmonics.',
@@ -566,6 +609,27 @@ window.PWM_EXAMPLES = [
       { id: 'overmod', tags: ['L2'], title: 'Overmodulation',
         text: 'With M > 1 the reference leaves the carrier band and pulses are dropped near the peaks. Low-order harmonics 3, 5, 7 … appear and the fundamental grows more slowly than M. Press Sweep M to watch it happen.',
         cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 1.4, p: 21, out: 'vaz' } },
+      { id: 'sixstep-vab', tags: ['L1'], title: 'Six-step, line-to-line voltage',
+        text: 'The line-to-line voltage of six-step has no triplen harmonics; the rest fall as 1/h (THD ≈ 31 %). Its WTHD0 is a reference point for the PWM methods.',
+        cfg: { topo: '2l', strat: 'sixstep', out: 'vab', hmax: '50' } },
+      { id: 'saw-fall', tags: ['L2'], title: 'Falling sawtooth (leading edge)',
+        text: 'A falling sawtooth modulates the leading edge instead of the trailing edge. The amplitude spectrum is the same as for the rising sawtooth; only the phases of the sidebands change.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'sawf', samp: 'nat', M: 0.75, p: 11, out: 'vaz', hmax: '50' } },
+      { id: 'a2-a-saw', tags: ['A2'], title: 'Phase leg, sawtooth carrier (2.1 a)',
+        text: 'Natural sampling, M = 0.4, p = 9 (variant 1). Single-edge modulation puts sidebands on both sides of every carrier multiple. Compare with the triangle carrier, and try the other variants: M = 0.5 … 0.9 with p = 10 … 14.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.4, p: 9, out: 'vaz', hmax: '100' } },
+      { id: 'a2-a-tri', tags: ['A2'], title: 'Phase leg, triangle carrier (2.1 a)',
+        text: 'Same M and p with a triangle carrier. The sidebands are arranged differently (only even offsets around odd multiples of p), yet WTHD0 of the phase leg is almost the same as with the sawtooth: the large harmonic at h = p dominates both. The carrier matters more in the full bridge (2.2 e).',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.4, p: 9, out: 'vaz', hmax: '100' } },
+      { id: 'a2-c', tags: ['A2'], title: 'Carrier phase and the fundamental (2.1 c)',
+        text: 'Sawtooth carrier with a low pulse number, p = 5 and M = 0.9. Drag Carrier phase and watch Ratio to linear value: the lower sidebands of the first carrier group fall on h = 1 and add to the fundamental with a phase that depends on the carrier position.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.9, p: 5, out: 'vaz', hmax: '25' } },
+      { id: 'a2-d-saw', tags: ['A2'], title: 'Symmetrical sampling, sawtooth (2.1 d)',
+        text: 'Regular sampling with a sawtooth carrier: the reference is sampled once per carrier period and held, which adds baseband harmonics and a small phase delay. Compare WTHD0 with the triangle carrier at the same M and p.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'sawr', samp: 'sym', M: 0.8, p: 9, out: 'vaz', hmax: '50' } },
+      { id: 'a2-d-tri', tags: ['A2'], title: 'Symmetrical sampling, triangle (2.1 d)',
+        text: 'Regular sampling with a triangle carrier: the sample is taken at the carrier peak, so each pulse stays centred on its sample. WTHD0 is lower than with the sawtooth (about 10.4 % against 11.9 %).',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'sym', M: 0.8, p: 9, out: 'vaz', hmax: '50' } },
     ],
   },
   {
@@ -578,6 +642,12 @@ window.PWM_EXAMPLES = [
       { id: 'hb-uni', tags: ['L2'], title: 'Unipolar switching',
         text: 'Leg b compares −v* with the same carrier. In v_ab the groups around p, 3p, … cancel, the output has three levels and the first harmonic group moves to 2p. Show v_az to see that each leg still has them.',
         cfg: { topo: 'hb', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.8, p: 15, out: 'vab' } },
+      { id: 'a2-e-saw', tags: ['A2'], title: 'Full bridge, sawtooth carrier (2.2 e)',
+        text: 'Full bridge with natural sampling, M = 0.4, p = 9. Amplitudes are normalised to Vdc here; the assignment asks for 2Vdc. With a sawtooth carrier the groups around odd multiples of p do not cancel in v_ab.',
+        cfg: { topo: 'hb', hbmod: 'uni', strat: 'spwm', carrier: 'sawr', samp: 'nat', M: 0.4, p: 9, out: 'vab', hmax: '100' } },
+      { id: 'a2-e-tri', tags: ['A2'], title: 'Full bridge, triangle carrier (2.2 e)',
+        text: 'The same full bridge with a triangle carrier. The odd carrier groups cancel and the first harmonics move to 2p, which lowers WTHD0.',
+        cfg: { topo: 'hb', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', M: 0.4, p: 9, out: 'vab', hmax: '100' } },
     ],
   },
   {
@@ -614,21 +684,60 @@ window.PWM_EXAMPLES = [
       { id: 'flux-pwm', tags: ['Lab'], title: 'Stator flux, PWM (lab 3.4)',
         text: 'Active vectors alternate with zero vectors, which stop the flux. The trajectory follows a circle with a small ripple.',
         cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 0.8, p: 22, out: 'vab' } },
+      { id: 'a2-g-spwm', tags: ['A2'], title: 'Three-phase, sine PWM (2.3 g)',
+        text: 'Asymmetrical regular sampling, M = 0.8, p = 13 (variant 5), line-to-line voltage. Compare WTHD0 with third-harmonic injection and SVM at the same M and p.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 13, out: 'vab', hmax: '100' } },
+      { id: 'a2-g-thi', tags: ['A2'], title: 'Three-phase, +1/6 injection (2.3 g)',
+        text: 'Same case with 1/6 third-harmonic injection. In the linear range the line-to-line fundamental is unchanged; the harmonics move between the sidebands.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 0.8, p: 13, out: 'vab', hmax: '100' } },
+      { id: 'a2-g-svm', tags: ['A2'], title: 'Three-phase, SVM (2.3 g)',
+        text: 'Same case with space vector modulation (centred zero vectors). It usually gives the lowest WTHD0 of the three.',
+        cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'asym', M: 0.8, p: 13, out: 'vab', hmax: '100' } },
+      { id: 'a2-j', tags: ['A2'], title: 'Minimum pulse width (2.3 j)',
+        text: 'p = 21, asymmetrical sampling and +1/6 injection with pulses shorter than 0.1 ms cancelled (variant 1). Sweep M and watch Ratio to linear value: near the peaks whole pulses vanish, and the output jumps instead of following M.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 1.1, p: 21, tmin: 100, out: 'vab' } },
+      { id: 'lab-cur24', tags: ['Lab'], title: 'Phase current, p = 24 (lab 3.1)',
+        text: 'Lab task 3.1, middle pulse number. Compare the current ripple with p = 9 and p = 39.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 24, out: 'ia' } },
+      { id: 'lab-spwm22', tags: ['Lab'], title: 'Sine PWM, p = 22 (lab 3.2)',
+        text: 'Lab task 3.2 reference case: sine PWM with M = 0.8 and p = 22. Look at v_az and compare with third-harmonic injection.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 0.8, p: 22, out: 'vaz' } },
+      { id: 'lab-thi22', tags: ['Lab'], title: '+1/6 injection, p = 22 (lab 3.2)',
+        text: 'The phase-leg voltage v_az now contains a third harmonic of M/6. Switch to v_ab: it disappears, because it is common to all three phases.',
+        cfg: { topo: '2l', strat: 'thi', carrier: 'tri', samp: 'asym', M: 0.8, p: 22, out: 'vaz' } },
+      { id: 'lab-spwm-m1', tags: ['Lab'], title: 'Sine PWM, M = 1, p = 9 (lab 3.2)',
+        text: 'Lab task 3.2: sine PWM at the edge of its linear range with a low pulse number. Compare with SVM at the same M and p.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 1, p: 9, out: 'vab' } },
+      { id: 'lab-svm-m1', tags: ['Lab'], title: 'SVM, M = 1, p = 9 (lab 3.2)',
+        text: 'SVM at the same M and p. The zero vectors are centred and the reference still has margin to the rails.',
+        cfg: { topo: '2l', strat: 'svm', carrier: 'tri', samp: 'asym', M: 1, p: 9, out: 'vab' } },
+      { id: 'lab-over', tags: ['Lab'], title: 'Overmodulation, p = 22 (lab 3.3)',
+        text: 'Lab task 3.3: M from 1.15 up to 2.0. Press Sweep M and watch the low-order harmonics (5, 7, 11, 13) grow as pulses are dropped, until the pattern approaches six-step.',
+        cfg: { topo: '2l', strat: 'spwm', carrier: 'tri', samp: 'asym', M: 1.5, p: 22, out: 'vab' } },
     ],
   },
   {
     group: 'Harmonic elimination',
     source: 'Lecture 3, computer assignment 2',
     items: [
-      { id: 'she5', tags: ['CA2', 'L3'], title: 'Two-level, 5 angles',
-        text: 'Five switching angles per quarter period set the fundamental and remove the 5th, 7th, 11th and 13th harmonics (CA2, part b). Triplens remain in v_az but cancel in v_ab. Sweep M to see the angles move.',
+      { id: 'she5', tags: ['A3', 'L3'], title: 'Two-level, 5 angles',
+        text: 'Five switching angles per quarter period set the fundamental and remove the 5th, 7th, 11th and 13th harmonics. Triplens remain in v_az but cancel in v_ab. Sweep M to see the angles move.',
         cfg: { topo: '2l', strat: 'she', nshe: 5, M: 0.8, out: 'vaz', hmax: '50' } },
       { id: 'she7', tags: ['L3'], title: 'Two-level, 7 angles',
         text: 'Seven angles remove all non-triplen harmonics from the 5th to the 19th. In v_ab the first remaining harmonics are the 23rd and 25th.',
         cfg: { topo: '2l', strat: 'she', nshe: 7, M: 0.6, out: 'vab', hmax: '50' } },
-      { id: 'she3l', tags: ['CA2', 'L5'], title: 'Three-level, 5 angles (CA2, part d)',
-        text: 'The phase voltage steps between 0 and ±Vdc only. At M = 0.5 the solver finds the angles given in CA2 (0.8114 … 1.4223 rad). Compare WTHD0 of v_ab with the two-level pattern at the same M.',
+      { id: 'she3l', tags: ['A3', 'L5'], title: 'Three-level, 5 angles',
+        text: 'The phase voltage steps between 0 and ±Vdc only. At M = 0.5 the solver finds the angles given in the assignment hint (0.8114 … 1.4223 rad). Compare WTHD0 of v_ab with the two-level pattern at the same M.',
         cfg: { topo: 'npc', strat: 'she', nshe: 5, M: 0.5, out: 'vab', hmax: '50' } },
+      { id: 'lab-she1', tags: ['Lab'], title: 'Harmonic elimination, 1 angle (lab 3.5)',
+        text: 'Lab task 3.5 with one angle per quarter period: only the fundamental is set, nothing is eliminated. Step through 1, 3, 5 and 7 angles at M = 0.8.',
+        cfg: { topo: '2l', strat: 'she', nshe: 1, M: 0.8, out: 'vab', hmax: '50' } },
+      { id: 'lab-she3', tags: ['Lab'], title: 'Harmonic elimination, 3 angles (lab 3.5)',
+        text: 'Three angles remove the 5th and 7th harmonics. The 11th and 13th become the largest.',
+        cfg: { topo: '2l', strat: 'she', nshe: 3, M: 0.8, out: 'vab', hmax: '50' } },
+      { id: 'lab-she7', tags: ['Lab'], title: 'Harmonic elimination, 7 angles (lab 3.5)',
+        text: 'Seven angles remove every non-triplen harmonic up to the 19th, at the cost of more switchings per period.',
+        cfg: { topo: '2l', strat: 'she', nshe: 7, M: 0.8, out: 'vab', hmax: '50' } },
     ],
   },
   {
@@ -674,6 +783,26 @@ window.PWM_EXAMPLES = [
       { id: 'mmc-ps2', tags: ['L5'], title: 'MMC, phase-shifted carriers, 2N + 1 levels',
         text: 'Same converter, but the lower-arm carriers are shifted a further 45°. The inserted count per leg then varies by one, the arm inductors take the difference, and v_az gets nine levels with the first harmonic group at 2Np = 80.',
         cfg: { topo: 'mmc', smn: 4, mmcmod: 'ps2', strat: 'spwm', M: 0.8, p: 10, out: 'vaz' } },
+      { id: 'npc-pod', tags: ['L5'], title: '3-level NPC, POD carriers',
+        text: 'For three levels POD and APOD are the same. Compare the phase-voltage spectrum with PD: the harmonic at h = p moves into sidebands.',
+        cfg: { topo: 'npc', arr: 'pod', strat: 'spwm', M: 0.8, p: 15, out: 'vaz', hmax: '50' } },
+    ],
+  },
+  {
+    group: 'Direct torque control',
+    items: [
+      { id: 'dtc-ss', tags: ['L4', 'A3'], title: 'DTC, steady state at 300 Nm',
+        text: 'PMSM at 1000 rpm with T* = 300 Nm. The torque moves inside its ±ΔT/2 band and the stator flux stays between the two dotted circles. Animate the circuit to see the switching table pick the next vector as the flux crosses each sector.',
+        cfg: { topo: '2l', strat: 'dtc', tstep: 'const', tq: 300, psr: 1.05, dtb: 20, dpb: 0.02, rpm: 1000, out: 'vab', hmax: '200' } },
+      { id: 'dtc-step', tags: ['L4', 'A3'], title: 'DTC, torque step 100 → 500 Nm',
+        text: 'The assignment case: the torque reference steps from 100 Nm to 500 Nm halfway through the period. With no modulator in the way the torque follows within about a millisecond, and the current amplitude rises with it.',
+        cfg: { topo: '2l', strat: 'dtc', tstep: 'step', tq: 500, psr: 1.05, dtb: 20, dpb: 0.02, rpm: 1000, out: 'ia', hmax: '200' } },
+      { id: 'dtc-band', tags: ['L4'], title: 'DTC, narrow torque band',
+        text: 'ΔT = 5 Nm instead of 20 Nm. The torque ripple shrinks, but the average switching frequency goes up: the hysteresis band is the only handle on it.',
+        cfg: { topo: '2l', strat: 'dtc', tstep: 'const', tq: 300, psr: 1.05, dtb: 5, dpb: 0.02, rpm: 1000, out: 'vab', hmax: '200' } },
+      { id: 'dtc-low', tags: ['L4'], title: 'DTC, low speed',
+        text: 'At 200 rpm the back EMF is small, so active vectors raise the torque fast and zero vectors are used most of the time. Compare the vector dwell times and the switching frequency with 1000 rpm.',
+        cfg: { topo: '2l', strat: 'dtc', tstep: 'const', tq: 300, psr: 1.05, dtb: 20, dpb: 0.02, rpm: 200, out: 'vab', hmax: '200' } },
     ],
   },
 ];
@@ -830,7 +959,7 @@ window.PWM_EXAMPLES = [
   const CARRIER_BASED = new Set(['spwm', 'thi', 'svm', 'dpwm1']);
   const LINEAR_LIMIT = { spwm: 1, thi: 2 / SQRT3, svm: 2 / SQRT3, dpwm1: 2 / SQRT3 };
   const STRATS = {
-    '2l': ['spwm', 'thi', 'svm', 'dpwm1', 'sixstep', 'she'],
+    '2l': ['spwm', 'thi', 'svm', 'dpwm1', 'sixstep', 'she', 'dtc'],
     hb: ['spwm'],
     npc: ['spwm', 'thi', 'svm', 'she'],
     chb: ['spwm', 'thi', 'svm'],
@@ -854,6 +983,7 @@ window.PWM_EXAMPLES = [
       ? 'This centres the zero vectors in each carrier period and is equivalent to SVM.'
       : 'For two levels this is SVM with centred zero vectors.') + ' Linear up to M ≈ 1.155.',
     dpwm1: () => 'Clamps the phase with the largest |v*| to the dc rail for 60° around its peak. One third fewer commutations. Linear up to M ≈ 1.155.',
+    dtc: () => '<p>Direct torque control of a PMSM, as in the course DTC exercise: 4 pole pairs, L<sub>s</sub> = 4 mH, R<sub>s</sub> = 60 mΩ, ψ<sub>m</sub> = 1 Vs, 1500 V dc link, controller sampled at 200 kHz.</p><p>A two-level flux comparator and a three-level torque comparator pick a voltage vector from Takahashi\'s switching table, by the sector of the stator flux. There is no modulator and no carrier, so the switching frequency varies and the spectrum is spread rather than grouped.</p>',
     sixstep: () => 'Each leg is a square wave, giving the largest fundamental, 4/π · V<sub>dc</sub> ≈ 1.27.',
     she: (t) => t === 'npc'
       ? 'Three-level, quarter-wave symmetric pattern (0 ↔ ±V<sub>dc</sub>) with N angles. Sets V<sub>1</sub> = M and removes the first N − 1 non-triplen harmonics.'
@@ -863,11 +993,12 @@ window.PWM_EXAMPLES = [
 
   const DEFAULTS = {
     topo: '2l', cells: '2', fcn: '2', smn: '4', mmcmod: 'ps1', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
-    M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
+    M: '0.8', p: '21', cph: '0', tmin: '0', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
+    tq: '300', psr: '1.05', dtb: '20', dpb: '0.02', rpm: '1000', tstep: 'const',
   };
   const ctlIds = Object.keys(DEFAULTS);
-  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur']);
-  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  const numeric = new Set(['M', 'p', 'cph', 'tmin', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur', 'tq', 'psr', 'dtb', 'dpb', 'rpm']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'cph', 'tmin', 'out', 'phi', 'tq', 'psr', 'dtb', 'dpb', 'rpm', 'tstep'];
   let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
 
   function params() {
@@ -887,6 +1018,9 @@ window.PWM_EXAMPLES = [
   const re = new Float64Array(NS), im = new Float64Array(NS);
   const amp = new Float64Array(NS / 2 + 1);
   const psiA = new Float64Array(NS), psiB = new Float64Array(NS);
+  const dtcT = new Float64Array(NS), dtcTref = new Float64Array(NS), dtcI = new Float64Array(NS); // DTC torque, reference, phase current
+  const DTC = { Ls: 4e-3, Rs: 60e-3, psim: 1, pp: 4, vdc: 1500, fs: 2e5 };  // course DTC model (sim_settings.m)
+  const VEC = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1], [1, 0, 1]];  // V1 … V6, V_k at (k−1)·60°
 
   function carrierAt(type, u) { // u in [0, 1): one carrier period, positive peak at u = 0
     if (type === 'sawr') return 2 * u - 1;
@@ -1014,6 +1148,81 @@ window.PWM_EXAMPLES = [
     return sign * (k % 2);
   }
 
+  // cancel runs shorter than wmin samples (cyclic), merging them into the preceding run
+  function dropShortPulses(arr, wmin) {
+    let start = -1;
+    for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) { start = i; break; }
+    if (start < 0) return 0;
+    const runs = [];
+    let i = start;
+    do {
+      const v = arr[i];
+      let len = 0;
+      while (len < NS && arr[(i + len) % NS] === v) len++;
+      runs.push([i, len, v]);
+      i = (i + len) % NS;
+    } while (i !== start && runs.length < NS);
+    let dropped = 0;
+    for (let r = 0; r < runs.length; r++) {
+      const [s0, len, v] = runs[r];
+      const prev = runs[(r - 1 + runs.length) % runs.length][2];
+      if (len < wmin && prev !== v) {
+        for (let q = 0; q < len; q++) arr[(s0 + q) % NS] = prev;
+        runs[r][2] = prev; dropped++;
+      }
+    }
+    return dropped;
+  }
+
+  // Direct torque control of the course PMSM at constant speed. Two periods of warm-up, then one period recorded.
+  function simulateDTC(p, res) {
+    const { Ls, Rs, psim, pp, vdc, fs } = DTC;
+    const we = (p.rpm / 60) * TWO_PI * pp, Te = TWO_PI / we, dt = Te / NS, Tc = 1 / fs, Ud = vdc / 2;
+    const step = p.tstep === 'step';
+    const Tfinal = p.tq, Tstart = step ? 100 : p.tq;
+    const B = p.dtb, psr = p.psr, db = p.dpb;
+    // start on the flux circle at the steady-state load angle
+    const sd = Math.max(-0.99, Math.min(0.99, (Tstart * Ls) / (1.5 * pp * psim * psr)));
+    let psa = psr * Math.cos(Math.asin(sd)), psb = psr * Math.sin(Math.asin(sd));
+    let s = [1, 0, 0], dpsi = 1, dT = 1, lastCtl = -1;
+    for (let n = 0; n < 3 * NS; n++) {
+      const t = n * dt, th = we * t, rec = n >= 2 * NS, i = n - 2 * NS;
+      const Tref = rec && step && i >= NS / 2 ? Tfinal : Tstart;
+      const ia = (psa - psim * Math.cos(th)) / Ls, ib = (psb - psim * Math.sin(th)) / Ls;
+      const T = 1.5 * pp * (psa * ib - psb * ia), mag = Math.hypot(psa, psb);
+      const ctl = Math.floor(t / Tc);
+      if (ctl !== lastCtl) { // sampled hysteresis controllers and switching table
+        lastCtl = ctl;
+        if (mag < psr - db / 2) dpsi = 1; else if (mag > psr + db / 2) dpsi = 0;
+        const e = Tref - T;
+        if (dT === 1) { if (e < -B / 2) dT = 0; }
+        else if (dT === 0) { if (e > B / 2) dT = 1; else if (e < -B) dT = -1; }
+        else if (e > 0) dT = 0;
+        const ang = Math.atan2(psb, psa);
+        const sector = Math.floor((((ang + Math.PI / 6) % TWO_PI) + TWO_PI) % TWO_PI / (Math.PI / 3)) % 6;
+        if (dT === 0) s = s[0] + s[1] + s[2] >= 2 ? [1, 1, 1] : [0, 0, 0];
+        else s = VEC[(sector + (dpsi ? 1 : 2) * dT + 12) % 6].slice();
+      }
+      if (rec) {
+        for (let k = 0; k < 3; k++) { sw[k][i] = 2 * s[k] - 1; ref[k][i] = NaN; }
+        dtcT[i] = T; dtcTref[i] = Tref; dtcI[i] = ia; psiA[i] = psa; psiB[i] = psb;
+      }
+      const va = (2 * s[0] - 1) * Ud, vb = (2 * s[1] - 1) * Ud, vc = (2 * s[2] - 1) * Ud;
+      const ua = (2 / 3) * (va - 0.5 * vb - 0.5 * vc), ub = (vb - vc) / SQRT3;
+      psa += (ua - Rs * ia) * dt; psb += (ub - Rs * ib) * dt;
+    }
+    // figures for the readout
+    let tmin = Infinity, tmax = -Infinity, tsum = 0, fmin = Infinity, fmax = -Infinity, n0 = step ? NS / 2 + Math.round(NS / 8) : 0;
+    for (let i = n0; i < NS; i++) {
+      tmin = Math.min(tmin, dtcT[i]); tmax = Math.max(tmax, dtcT[i]); tsum += dtcT[i];
+      const m = Math.hypot(psiA[i], psiB[i]); fmin = Math.min(fmin, m); fmax = Math.max(fmax, m);
+    }
+    res.dtc = { Te, Tmean: tsum / (NS - n0), Tpp: tmax - tmin, psiPP: fmax - fmin, f1: 1 / Te, step };
+    res.info.push(`One fundamental period at ${p.rpm} rpm (f<sub>1</sub> = ${(1 / Te).toFixed(1)} Hz) after two periods of settling.` +
+      (step ? ' The torque reference steps from 100 Nm to the set value halfway through; the figures in the readout are taken after the step.' : '') +
+      ' The switching is not synchronised with f<sub>1</sub>, so the spectrum of one period shows a spread (non-characteristic) spectrum.');
+  }
+
   // ---------- compute one period ----------
   function compute(p) {
     const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
@@ -1040,7 +1249,8 @@ window.PWM_EXAMPLES = [
       res.nCars = K; res.ps = ps;
       const cv = new Float64Array(K);
       for (let i = 0; i < NS; i++) {
-        const u = (p.p * i) / NS, fu = u - Math.floor(u);
+        const off = twoLevelCarrier ? p.cph / 360 : 0; // carrier phase, in carrier periods
+        const u = (p.p * i) / NS + off, fu = u - Math.floor(u);
         if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
         else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else if (mmc) { // upper-arm carriers 360°/N apart; for 2N + 1 levels the lower arm's set is shifted by a further 180°/N
@@ -1056,8 +1266,8 @@ window.PWM_EXAMPLES = [
         }
         for (let j = 0; j < K; j++) cars[j][i] = cv[j];
         const th = samp === 'nat' ? (TWO_PI * i) / NS
-          : samp === 'sym' ? (TWO_PI * Math.floor(u)) / p.p
-          : (TWO_PI * Math.floor(2 * u)) / (2 * p.p);
+          : samp === 'sym' ? (TWO_PI * (Math.floor(u) - off)) / p.p
+          : (TWO_PI * (Math.floor(2 * u) / 2 - off)) / p.p;
 
         if (topo === 'hb') {
           const r = M * Math.cos(th);
@@ -1106,6 +1316,14 @@ window.PWM_EXAMPLES = [
           }
         }
       }
+      if (twoLevelCarrier && p.tmin > 0) { // pulses shorter than tmin (at f1 = 50 Hz) are cancelled
+        const wmin = p.tmin * 1e-6 * 50 * NS;
+        let dropped = 0;
+        for (let k = 0; k < (topo === 'hb' ? 2 : 3); k++) dropped += dropShortPulses(sw[k], wmin);
+        res.notes.push(`${dropped} short pulses removed`);
+        res.info.push(`Pulses shorter than ${p.tmin} µs (${(p.tmin * 0.018).toFixed(2)}° at f<sub>1</sub> = 50 Hz) are cancelled, as when dead time limits the minimum pulse width. Near the reference peaks this removes whole pulses, so the fundamental no longer follows M linearly.`);
+      }
+      if (p.cph && twoLevelCarrier) res.info.push(`The carrier is shifted by ${p.cph}° of a carrier period. With a sawtooth carrier and low p the fundamental depends on this phase (see Ratio to linear value).`);
       if (p.strat === 'dpwm1' && samp === 'nat')
         res.info.push('With natural sampling the clamp transitions fall inside carrier periods, so parts of pulses are lost and the fundamental drops. Regular sampling avoids this.');
       if (M > LINEAR_LIMIT[p.strat] + 1e-9) {
@@ -1118,6 +1336,8 @@ window.PWM_EXAMPLES = [
       if (mmc && mm === 'ps2') res.info.push(`The lower-arm carriers are shifted a further 180°/N against the upper arm. The number of inserted submodules per leg then varies between N − 1 and N + 1 (the arm inductors take the difference), and v_az has 2N + 1 = ${2 * Nm + 1} levels.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
+    } else if (p.strat === 'dtc') {
+      simulateDTC(p, res);
     } else if (p.strat === 'sixstep') {
       for (let i = 0; i < NS; i++) {
         const th = (TWO_PI * i) / NS;
@@ -1154,7 +1374,8 @@ window.PWM_EXAMPLES = [
       if (!threePh) y[i] = p.out === 'vaz' ? a : a - b;
       else y[i] = p.out === 'vaz' ? a : p.out === 'vab' ? a - b : a - (a + b + c) / 3;
     }
-    if (p.out === 'ia') {
+    if (p.out === 'ia' && res.dtc) y.set(dtcI);
+    else if (p.out === 'ia') {
       // i = v / Z(h), Z(h) = cos φ + j h sin φ (|Z| = 1 at the fundamental)
       re.set(y); im.fill(0);
       fft.forward(re, im);
@@ -1193,6 +1414,7 @@ window.PWM_EXAMPLES = [
     res.wthd = Math.sqrt(w2) / amp[1];
     const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
     res.commutations = transitions(sw[0]);
+    if (res.dtc) res.dtc.fsw = res.commutations / 2 / res.dtc.Te;
     if (mmc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nm }, (_, j) => transitions(cellA[0][j]));
     if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
     if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
@@ -1206,14 +1428,14 @@ window.PWM_EXAMPLES = [
         const a = sw[0][i], b = sw[1][i], c = sw[2][i];
         const va = (2 / 3) * (a - 0.5 * b - 0.5 * c), vb = (b - c) / SQRT3;
         pa += va * dth; pb += vb * dth;
-        psiA[i] = pa; psiB[i] = pb; ma += pa; mb += pb;
+        if (!res.dtc) { psiA[i] = pa; psiB[i] = pb; } ma += pa; mb += pb;
         const key = Math.round(va * 1e4) + ',' + Math.round(vb * 1e4);
         const e = dw.get(key);
         if (e) e.d += 1 / NS; else dw.set(key, { va, vb, d: 1 / NS });
       }
       res.dwell = [...dw.values()];
       ma /= NS; mb /= NS;
-      for (let i = 0; i < NS; i++) { psiA[i] -= ma; psiB[i] -= mb; }
+      if (!res.dtc) for (let i = 0; i < NS; i++) { psiA[i] -= ma; psiB[i] -= mb; }
       let cr = 0, ci = 0;
       for (let i = 0; i < NS; i++) {
         const a = sw[0][i], v = a - (a + sw[1][i] + sw[2][i]) / 3, th = (TWO_PI * i) / NS;
@@ -1346,6 +1568,8 @@ window.PWM_EXAMPLES = [
     const xFmt = (x) => x + '°';
     const threePh = p.topo !== 'hb';
 
+    if (res.dtc) drawTorque(ctx, top, p, i1, degStep);
+    else {
     // top: carriers and references
     let rmax = 1;
     for (let k = 0; k < 3; k++) for (let i = 0; i < NS; i += 8) if (!Number.isNaN(ref[k][i])) rmax = Math.max(rmax, Math.abs(ref[k][i]));
@@ -1363,15 +1587,16 @@ window.PWM_EXAMPLES = [
     trace(ctx, top, ref[0], 0, i1, -ry, ry, colors['c-message'], 1.8, carrierShown ? null : [6, 4]);
     if (res.nCars) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
     header(ctx, top, !carrierShown ? 'Fundamental reference' : res.nCars ? 'Reference and carrier' : 'Reference', tItems);
+    }
 
     // bottom: output
     let ymax;
     if (p.out === 'ia') { let m = 0; for (let i = 0; i < NS; i++) m = Math.max(m, Math.abs(y[i])); ymax = niceCeil(m * 1.15 || 1); }
     else ymax = { vaz: 1.25, vab: 2.5, van: 1.5 }[p.out];
-    axes(ctx, bot, 0, p.view, -ymax, ymax, { xStep: degStep, xFmt, yStep: ymax > 2 ? 1 : 0.5 });
+    axes(ctx, bot, 0, p.view, -ymax, ymax, { xStep: degStep, xFmt, yStep: p.out === 'ia' ? undefined : ymax > 2 ? 1 : 0.5 });
     trace(ctx, bot, y, 0, i1, -ymax, ymax, colors['c-signal'], p.out === 'ia' ? 1.6 : 1.1);
     trace(ctx, bot, fund, 0, i1, -ymax, ymax, colors['c-message'], 1.6, [6, 4]);
-    header(ctx, bot, OUT_LABEL[p.out] + (p.out === 'ia' ? ' (pu)' : ' / Vdc'), [[OUT_LABEL[p.out], colors['c-signal']], ['fundamental', colors['c-message'], [6, 4]]]);
+    header(ctx, bot, OUT_LABEL[p.out] + (p.out === 'ia' ? (res.dtc ? ' (A)' : ' (pu)') : ' / Vdc'), [[OUT_LABEL[p.out], colors['c-signal']], ['fundamental', colors['c-message'], [6, 4]]]);
     ctx.fillStyle = colors.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     ctx.fillText('ω₁t', bot.x + bot.w, h - 1);
 
@@ -1385,8 +1610,23 @@ window.PWM_EXAMPLES = [
     }
   }
 
+  function drawTorque(ctx, box, p, i1, degStep) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < NS; i++) { lo = Math.min(lo, dtcT[i], dtcTref[i] - p.dtb); hi = Math.max(hi, dtcT[i], dtcTref[i] + p.dtb); }
+    const pad = Math.max(10, 0.08 * (hi - lo));
+    const st = niceStep(hi - lo + 2 * pad, 4), y0 = Math.floor((lo - pad) / st) * st, y1 = Math.ceil((hi + pad) / st) * st;
+    axes(ctx, box, 0, p.view, y0, y1, { xStep: degStep, xLabels: false, yStep: st, yFmt: (v) => v.toFixed(0) });
+    const band = (sgn) => { const a = new Float64Array(NS); for (let i = 0; i < NS; i++) a[i] = dtcTref[i] + (sgn * p.dtb) / 2; return a; };
+    trace(ctx, box, band(1), 0, i1, y0, y1, colors['c-carrier'], 1, [2, 3]);
+    trace(ctx, box, band(-1), 0, i1, y0, y1, colors['c-carrier'], 1, [2, 3]);
+    trace(ctx, box, dtcTref, 0, i1, y0, y1, colors['c-message'], 1.6, [6, 4]);
+    trace(ctx, box, dtcT, 0, i1, y0, y1, colors['c-signal'], 1.2);
+    header(ctx, box, 'Torque (Nm)', [['T', colors['c-signal']], ['T*', colors['c-message'], [6, 4]], ['band', colors['c-carrier'], [2, 3]]]);
+  }
+
   function hmaxFor(p, res) {
     if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
+    if (res.dtc) return 200;
     if (!CARRIER_BASED.has(p.strat)) return 50;
     if (res.mmc && p.mmcmod === 'nlm') return 50;
     const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p
@@ -1461,7 +1701,7 @@ window.PWM_EXAMPLES = [
     ctx.save();
     ctx.translate(11, box.y + box.h / 2); ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(dbScale ? 'dB re Vdc' : (p.out === 'ia' ? 'amplitude (pu)' : 'amplitude / Vdc'), 0, 0);
+    ctx.fillText(dbScale ? 'dB re Vdc' : (p.out === 'ia' ? (res.dtc ? 'amplitude (A)' : 'amplitude (pu)') : 'amplitude / Vdc'), 0, 0);
     ctx.restore();
   }
 
@@ -1548,8 +1788,18 @@ window.PWM_EXAMPLES = [
     for (let i = 0; i < NS; i += 4) R = Math.max(R, Math.hypot(psiA[i], psiB[i]));
     const P1 = plotIn(b1, R * 1.1);
     axesCross(b1);
-    ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), res.V1an * P1.k, 0, TWO_PI); ctx.stroke();
+    if (res.dtc) { // hysteresis band and the six sectors
+      ctx.strokeStyle = colors['c-grid']; ctx.lineWidth = 1;
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI / 6 + (k * Math.PI) / 3;
+        ctx.beginPath(); ctx.moveTo(P1.X(0), P1.Y(0)); ctx.lineTo(P1.X(R * 1.05 * Math.cos(a)), P1.Y(R * 1.05 * Math.sin(a))); ctx.stroke();
+      }
+      ctx.setLineDash([2, 3]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.2;
+      for (const r of [p.psr - p.dpb / 2, p.psr + p.dpb / 2]) { ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), r * P1.k, 0, TWO_PI); ctx.stroke(); }
+    } else {
+      ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), res.V1an * P1.k, 0, TWO_PI); ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.strokeStyle = colors['c-signal']; ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -1560,11 +1810,11 @@ window.PWM_EXAMPLES = [
     ctx.stroke();
     ctx.fillStyle = colors['c-message'];
     ctx.beginPath(); ctx.arc(P1.X(psiA[ic]), P1.Y(psiB[ic]), 4, 0, TWO_PI); ctx.fill();
-    header(ctx, { x: b1.x, y: b1.y, w: b1.s }, 'Stator flux ψ', []);
+    header(ctx, { x: b1.x, y: b1.y, w: b1.s }, res.dtc ? 'Stator flux ψ (Vs)' : 'Stator flux ψ', []);
 
     ctx.fillStyle = colors.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
     ctx.font = font(10);
-    ctx.fillText('dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
+    ctx.fillText(res.dtc ? 'dotted: flux band ψ* ± Δψ/2' : 'dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
     ctx.fillText('dot size: dwell time', b0.x + 6, b0.y + b0.s - 4);
   }
 
@@ -1761,11 +2011,17 @@ window.PWM_EXAMPLES = [
     const pct = (v) => (Number.isFinite(v) ? (100 * v).toFixed(2) + ' %' : '—');
     const threePh = p.topo !== 'hb';
     if (!res.failed) {
-      const unit = p.out === 'ia' ? ' pu' : ' Vdc';
+      const unit = p.out === 'ia' ? (res.dtc ? ' A' : ' pu') : ' Vdc';
       rows.push(['Fundamental ' + OUT_LABEL[p.out] + ',1', res.V1.toFixed(3) + unit]);
-      if (p.strat !== 'sixstep') {
+      if (p.strat !== 'sixstep' && !res.dtc) {
         const lin = threePh ? { vaz: p.M, van: p.M, vab: SQRT3 * p.M, ia: p.M }[p.out] : { vaz: p.M, vab: 2 * p.M, ia: 2 * p.M }[p.out];
         if (lin > 0) rows.push(['Ratio to linear value', (res.V1 / lin).toFixed(3)]);
+      }
+      if (res.dtc) {
+        rows.push(['Torque, mean' + (res.dtc.step ? ' after step' : ''), res.dtc.Tmean.toFixed(0) + ' Nm']);
+        rows.push(['Torque ripple, peak to peak', res.dtc.Tpp.toFixed(0) + ' Nm']);
+        rows.push(['Flux ripple, peak to peak', (1000 * res.dtc.psiPP).toFixed(0) + ' mVs']);
+        rows.push(['Average switching frequency', (res.dtc.fsw / 1000).toFixed(2) + ' kHz']);
       }
       rows.push(['THD', pct(res.thd)]);
       if (p.out !== 'ia') {
@@ -1805,12 +2061,19 @@ window.PWM_EXAMPLES = [
       const okT = !el.dataset.topo || el.dataset.topo.split(' ').includes(p.topo);
       el.hidden = !(okS && okT);
     });
-    $('phi-ctl').hidden = p.out !== 'ia';
+    $('phi-ctl').hidden = p.out !== 'ia' || p.strat === 'dtc'; // DTC drives the machine model, not the R-L load
     if (p.topo === 'mmc' && p.mmcmod === 'nlm') $('p-ctl').hidden = true; // no carrier
     $('M-out').textContent = p.M.toFixed(2);
     $('p-out').textContent = String(p.p);
     $('phi-out').textContent = p.phi + '°';
     $('cur-out').textContent = p.cur.toFixed(0) + '°';
+    $('cph-out').textContent = p.cph + '°';
+    $('tmin-out').textContent = p.tmin ? p.tmin + ' µs' : 'off';
+    $('tq-out').textContent = p.tq + ' Nm';
+    $('dtb-out').textContent = p.dtb + ' Nm';
+    $('psr-out').textContent = p.psr.toFixed(2) + ' Vs';
+    $('dpb-out').textContent = (1000 * p.dpb).toFixed(0) + ' mVs';
+    $('rpm-out').textContent = p.rpm + ' rpm';
   }
 
   let lastKey = '', lastRes = null;
@@ -1845,7 +2108,7 @@ window.PWM_EXAMPLES = [
   function readHash() {
     const q = new URLSearchParams(location.hash.slice(1));
     for (const id of ctlIds) if (q.has(id)) $(id).value = q.get(id);
-    const src = q.get('src') || '';
+    const raw = q.get('src') || '', src = (window.PWM_SOURCE_ALIAS || {})[raw] || raw;
     $('exSrc').value = SOURCES.some((s) => s.id === src) ? src : '';
     fillExamples();
     showExample(q.get('ex') || '');

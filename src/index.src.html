@@ -115,6 +115,9 @@
             <option value="sixstep">Six-step</option>
             <option value="she">Selective harmonic elimination</option>
           </optgroup>
+          <optgroup label="Closed loop">
+            <option value="dtc">Direct torque control (PMSM)</option>
+          </optgroup>
         </select>
       </div>
       <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
@@ -149,6 +152,42 @@
       <div class="ctl" id="p-ctl" data-for="spwm thi svm dpwm1">
         <label class="lbl" for="p">Pulse number p <button class="tip" data-tip="p = f<sub>c</sub>/f<sub>1</sub>: carrier frequency in multiples of the fundamental."></button><output id="p-out"></output></label>
         <input type="range" id="p" min="3" max="60" step="1" value="21">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <label class="lbl" for="cph">Carrier phase <button class="tip" data-tip="Shifts the carrier against the reference, in degrees of one carrier period. With a sawtooth carrier and a low p the fundamental depends on this phase (assignment 2, part c)."></button><output id="cph-out"></output></label>
+        <input type="range" id="cph" min="0" max="359" step="1" value="0">
+      </div>
+      <div class="ctl" data-for="spwm thi svm dpwm1" data-topo="2l hb">
+        <label class="lbl" for="tmin">Minimum pulse width <button class="tip" data-tip="Pulses shorter than this are cancelled, as when dead time limits the shortest pulse. Given in µs at f<sub>1</sub> = 50 Hz (assignment 2, part j). 0 = no limit."></button><output id="tmin-out"></output></label>
+        <input type="range" id="tmin" min="0" max="300" step="5" value="0">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <div class="lbl">Torque reference</div>
+        <select id="tstep" hidden>
+          <option value="const" data-short="Constant" selected>Constant</option>
+          <option value="step" data-short="Step 100 → T*">Step from 100 Nm to T* halfway</option>
+        </select>
+        <div class="seg" data-select="tstep"></div>
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="tq">T* <output id="tq-out"></output></label>
+        <input type="range" id="tq" min="0" max="600" step="10" value="300">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="dtb">Torque band ΔT <output id="dtb-out"></output></label>
+        <input type="range" id="dtb" min="2" max="120" step="1" value="20">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="psr">Flux reference ψ* <output id="psr-out"></output></label>
+        <input type="range" id="psr" min="0.9" max="1.3" step="0.01" value="1.05">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="dpb">Flux band Δψ <output id="dpb-out"></output></label>
+        <input type="range" id="dpb" min="0.002" max="0.1" step="0.002" value="0.02">
+      </div>
+      <div class="ctl" data-for="dtc">
+        <label class="lbl" for="rpm">Speed <output id="rpm-out"></output></label>
+        <input type="range" id="rpm" min="100" max="2000" step="10" value="1000">
       </div>
       <div class="ctl" data-for="spwm thi svm dpwm1 she">
         <button type="button" class="btn" id="sweep" aria-pressed="false"></button>

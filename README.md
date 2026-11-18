@@ -8,10 +8,11 @@ Live at https://enesayaz.github.io/Modulation-Course/.
   levels (phase-shifted carriers), and modular multilevel converter with 2–8 submodules per arm
   (nearest level modulation, or phase-shifted carriers with N + 1 or 2N + 1 levels).
 - Methods: sine PWM, 1/6 third-harmonic injection, SVM (min–max zero sequence), DPWM1, six-step,
-  and two- and three-level selective harmonic elimination.
+  two- and three-level selective harmonic elimination, and direct torque control of the course PMSM
+  (Takahashi switching table). Carrier phase and minimum pulse width can be set for carrier PWM.
 - Animated circuit schematic with switch states at a time cursor, switched waveform, harmonic
   spectrum, THD / WTHD0, R-L load current, voltage vectors and stator flux.
-- 34 examples from the lectures, computer assignments and lab. In the top bar, students first pick a
+- 61 examples from the lectures, assignments and lab. In the top bar, students first pick a
   lecture or assignment, then one of its examples.
 
 The page follows the Atlas style: theme tokens, light/dark/system themes, short labels, and every
@@ -55,8 +56,8 @@ The link button next to the spectrum copies the current one.
 
 Keys: `topo` (`2l hb npc chb fc mmc`), `cells` (`1 2 3`), `fcn` (`2 3`), `smn` (`2 4 6 8`), `mmcmod` (`nlm ps1 ps2`), `arr` (`ps pd pod apod`), `hbmod` (`bip uni`),
 `strat` (`spwm thi svm dpwm1 sixstep she`), `carrier` (`tri sawr sawf`), `samp` (`nat sym asym`),
-`M`, `p`, `nshe` (`1 3 5 7`), `out` (`vaz vab van ia`), `phi` (load angle, degrees),
-`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), `src` (lecture or assignment filter), `ex` (example id).
+`M`, `p`, `cph` (carrier phase, degrees), `tmin` (minimum pulse width, µs at 50 Hz), `nshe` (`1 3 5 7`), `out` (`vaz vab van ia`), `phi` (load angle, degrees),
+`view` (`360 180 90`), `hmax` (`auto 25 50 100 200`), `cur` (time cursor, degrees), DTC: `tq` `psr` `dtb` `dpb` `rpm` `tstep` (`const step`), `src` (lecture or assignment filter), `ex` (example id).
 
 ## The Source/ folder
 

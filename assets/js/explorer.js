@@ -14,7 +14,7 @@
   const CARRIER_BASED = new Set(['spwm', 'thi', 'svm', 'dpwm1']);
   const LINEAR_LIMIT = { spwm: 1, thi: 2 / SQRT3, svm: 2 / SQRT3, dpwm1: 2 / SQRT3 };
   const STRATS = {
-    '2l': ['spwm', 'thi', 'svm', 'dpwm1', 'sixstep', 'she'],
+    '2l': ['spwm', 'thi', 'svm', 'dpwm1', 'sixstep', 'she', 'dtc'],
     hb: ['spwm'],
     npc: ['spwm', 'thi', 'svm', 'she'],
     chb: ['spwm', 'thi', 'svm'],
@@ -38,6 +38,7 @@
       ? 'This centres the zero vectors in each carrier period and is equivalent to SVM.'
       : 'For two levels this is SVM with centred zero vectors.') + ' Linear up to M ≈ 1.155.',
     dpwm1: () => 'Clamps the phase with the largest |v*| to the dc rail for 60° around its peak. One third fewer commutations. Linear up to M ≈ 1.155.',
+    dtc: () => '<p>Direct torque control of a PMSM, as in the course DTC exercise: 4 pole pairs, L<sub>s</sub> = 4 mH, R<sub>s</sub> = 60 mΩ, ψ<sub>m</sub> = 1 Vs, 1500 V dc link, controller sampled at 200 kHz.</p><p>A two-level flux comparator and a three-level torque comparator pick a voltage vector from Takahashi\'s switching table, by the sector of the stator flux. There is no modulator and no carrier, so the switching frequency varies and the spectrum is spread rather than grouped.</p>',
     sixstep: () => 'Each leg is a square wave, giving the largest fundamental, 4/π · V<sub>dc</sub> ≈ 1.27.',
     she: (t) => t === 'npc'
       ? 'Three-level, quarter-wave symmetric pattern (0 ↔ ±V<sub>dc</sub>) with N angles. Sets V<sub>1</sub> = M and removes the first N − 1 non-triplen harmonics.'
@@ -47,11 +48,12 @@
 
   const DEFAULTS = {
     topo: '2l', cells: '2', fcn: '2', smn: '4', mmcmod: 'ps1', arr: 'pd', hbmod: 'uni', strat: 'spwm', carrier: 'tri', samp: 'nat', nshe: '5',
-    M: '0.8', p: '21', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
+    M: '0.8', p: '21', cph: '0', tmin: '0', out: 'vaz', phi: '70', view: '360', hmax: 'auto', cur: '30',
+    tq: '300', psr: '1.05', dtb: '20', dpb: '0.02', rpm: '1000', tstep: 'const',
   };
   const ctlIds = Object.keys(DEFAULTS);
-  const numeric = new Set(['M', 'p', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur']);
-  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'out', 'phi'];
+  const numeric = new Set(['M', 'p', 'cph', 'tmin', 'phi', 'nshe', 'view', 'cells', 'fcn', 'smn', 'cur', 'tq', 'psr', 'dtb', 'dpb', 'rpm']);
+  const computeKeys = ['topo', 'cells', 'fcn', 'smn', 'mmcmod', 'arr', 'hbmod', 'strat', 'carrier', 'samp', 'nshe', 'M', 'p', 'cph', 'tmin', 'out', 'phi', 'tq', 'psr', 'dtb', 'dpb', 'rpm', 'tstep'];
   let allPhases = false, dbScale = false, sweeping = false, playing = false, hoverX = null;
 
   function params() {
@@ -71,6 +73,9 @@
   const re = new Float64Array(NS), im = new Float64Array(NS);
   const amp = new Float64Array(NS / 2 + 1);
   const psiA = new Float64Array(NS), psiB = new Float64Array(NS);
+  const dtcT = new Float64Array(NS), dtcTref = new Float64Array(NS), dtcI = new Float64Array(NS); // DTC torque, reference, phase current
+  const DTC = { Ls: 4e-3, Rs: 60e-3, psim: 1, pp: 4, vdc: 1500, fs: 2e5 };  // course DTC model (sim_settings.m)
+  const VEC = [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1], [1, 0, 1]];  // V1 … V6, V_k at (k−1)·60°
 
   function carrierAt(type, u) { // u in [0, 1): one carrier period, positive peak at u = 0
     if (type === 'sawr') return 2 * u - 1;
@@ -198,6 +203,81 @@
     return sign * (k % 2);
   }
 
+  // cancel runs shorter than wmin samples (cyclic), merging them into the preceding run
+  function dropShortPulses(arr, wmin) {
+    let start = -1;
+    for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) { start = i; break; }
+    if (start < 0) return 0;
+    const runs = [];
+    let i = start;
+    do {
+      const v = arr[i];
+      let len = 0;
+      while (len < NS && arr[(i + len) % NS] === v) len++;
+      runs.push([i, len, v]);
+      i = (i + len) % NS;
+    } while (i !== start && runs.length < NS);
+    let dropped = 0;
+    for (let r = 0; r < runs.length; r++) {
+      const [s0, len, v] = runs[r];
+      const prev = runs[(r - 1 + runs.length) % runs.length][2];
+      if (len < wmin && prev !== v) {
+        for (let q = 0; q < len; q++) arr[(s0 + q) % NS] = prev;
+        runs[r][2] = prev; dropped++;
+      }
+    }
+    return dropped;
+  }
+
+  // Direct torque control of the course PMSM at constant speed. Two periods of warm-up, then one period recorded.
+  function simulateDTC(p, res) {
+    const { Ls, Rs, psim, pp, vdc, fs } = DTC;
+    const we = (p.rpm / 60) * TWO_PI * pp, Te = TWO_PI / we, dt = Te / NS, Tc = 1 / fs, Ud = vdc / 2;
+    const step = p.tstep === 'step';
+    const Tfinal = p.tq, Tstart = step ? 100 : p.tq;
+    const B = p.dtb, psr = p.psr, db = p.dpb;
+    // start on the flux circle at the steady-state load angle
+    const sd = Math.max(-0.99, Math.min(0.99, (Tstart * Ls) / (1.5 * pp * psim * psr)));
+    let psa = psr * Math.cos(Math.asin(sd)), psb = psr * Math.sin(Math.asin(sd));
+    let s = [1, 0, 0], dpsi = 1, dT = 1, lastCtl = -1;
+    for (let n = 0; n < 3 * NS; n++) {
+      const t = n * dt, th = we * t, rec = n >= 2 * NS, i = n - 2 * NS;
+      const Tref = rec && step && i >= NS / 2 ? Tfinal : Tstart;
+      const ia = (psa - psim * Math.cos(th)) / Ls, ib = (psb - psim * Math.sin(th)) / Ls;
+      const T = 1.5 * pp * (psa * ib - psb * ia), mag = Math.hypot(psa, psb);
+      const ctl = Math.floor(t / Tc);
+      if (ctl !== lastCtl) { // sampled hysteresis controllers and switching table
+        lastCtl = ctl;
+        if (mag < psr - db / 2) dpsi = 1; else if (mag > psr + db / 2) dpsi = 0;
+        const e = Tref - T;
+        if (dT === 1) { if (e < -B / 2) dT = 0; }
+        else if (dT === 0) { if (e > B / 2) dT = 1; else if (e < -B) dT = -1; }
+        else if (e > 0) dT = 0;
+        const ang = Math.atan2(psb, psa);
+        const sector = Math.floor((((ang + Math.PI / 6) % TWO_PI) + TWO_PI) % TWO_PI / (Math.PI / 3)) % 6;
+        if (dT === 0) s = s[0] + s[1] + s[2] >= 2 ? [1, 1, 1] : [0, 0, 0];
+        else s = VEC[(sector + (dpsi ? 1 : 2) * dT + 12) % 6].slice();
+      }
+      if (rec) {
+        for (let k = 0; k < 3; k++) { sw[k][i] = 2 * s[k] - 1; ref[k][i] = NaN; }
+        dtcT[i] = T; dtcTref[i] = Tref; dtcI[i] = ia; psiA[i] = psa; psiB[i] = psb;
+      }
+      const va = (2 * s[0] - 1) * Ud, vb = (2 * s[1] - 1) * Ud, vc = (2 * s[2] - 1) * Ud;
+      const ua = (2 / 3) * (va - 0.5 * vb - 0.5 * vc), ub = (vb - vc) / SQRT3;
+      psa += (ua - Rs * ia) * dt; psb += (ub - Rs * ib) * dt;
+    }
+    // figures for the readout
+    let tmin = Infinity, tmax = -Infinity, tsum = 0, fmin = Infinity, fmax = -Infinity, n0 = step ? NS / 2 + Math.round(NS / 8) : 0;
+    for (let i = n0; i < NS; i++) {
+      tmin = Math.min(tmin, dtcT[i]); tmax = Math.max(tmax, dtcT[i]); tsum += dtcT[i];
+      const m = Math.hypot(psiA[i], psiB[i]); fmin = Math.min(fmin, m); fmax = Math.max(fmax, m);
+    }
+    res.dtc = { Te, Tmean: tsum / (NS - n0), Tpp: tmax - tmin, psiPP: fmax - fmin, f1: 1 / Te, step };
+    res.info.push(`One fundamental period at ${p.rpm} rpm (f<sub>1</sub> = ${(1 / Te).toFixed(1)} Hz) after two periods of settling.` +
+      (step ? ' The torque reference steps from 100 Nm to the set value halfway through; the figures in the readout are taken after the step.' : '') +
+      ' The switching is not synchronised with f<sub>1</sub>, so the spectrum of one period shows a spread (non-characteristic) spectrum.');
+  }
+
   // ---------- compute one period ----------
   function compute(p) {
     const res = { notes: [], info: [], nCars: 0, levels: 2, cellComm: null };
@@ -224,7 +304,8 @@
       res.nCars = K; res.ps = ps;
       const cv = new Float64Array(K);
       for (let i = 0; i < NS; i++) {
-        const u = (p.p * i) / NS, fu = u - Math.floor(u);
+        const off = twoLevelCarrier ? p.cph / 360 : 0; // carrier phase, in carrier periods
+        const u = (p.p * i) / NS + off, fu = u - Math.floor(u);
         if (twoLevelCarrier) cv[0] = carrierAt(ctype, fu);
         else if (fc) for (let j = 0; j < Nf; j++) { const v = u + j / Nf; cv[j] = carrierAt('tri', v - Math.floor(v)); }
         else if (mmc) { // upper-arm carriers 360°/N apart; for 2N + 1 levels the lower arm's set is shifted by a further 180°/N
@@ -240,8 +321,8 @@
         }
         for (let j = 0; j < K; j++) cars[j][i] = cv[j];
         const th = samp === 'nat' ? (TWO_PI * i) / NS
-          : samp === 'sym' ? (TWO_PI * Math.floor(u)) / p.p
-          : (TWO_PI * Math.floor(2 * u)) / (2 * p.p);
+          : samp === 'sym' ? (TWO_PI * (Math.floor(u) - off)) / p.p
+          : (TWO_PI * (Math.floor(2 * u) / 2 - off)) / p.p;
 
         if (topo === 'hb') {
           const r = M * Math.cos(th);
@@ -290,6 +371,14 @@
           }
         }
       }
+      if (twoLevelCarrier && p.tmin > 0) { // pulses shorter than tmin (at f1 = 50 Hz) are cancelled
+        const wmin = p.tmin * 1e-6 * 50 * NS;
+        let dropped = 0;
+        for (let k = 0; k < (topo === 'hb' ? 2 : 3); k++) dropped += dropShortPulses(sw[k], wmin);
+        res.notes.push(`${dropped} short pulses removed`);
+        res.info.push(`Pulses shorter than ${p.tmin} µs (${(p.tmin * 0.018).toFixed(2)}° at f<sub>1</sub> = 50 Hz) are cancelled, as when dead time limits the minimum pulse width. Near the reference peaks this removes whole pulses, so the fundamental no longer follows M linearly.`);
+      }
+      if (p.cph && twoLevelCarrier) res.info.push(`The carrier is shifted by ${p.cph}° of a carrier period. With a sawtooth carrier and low p the fundamental depends on this phase (see Ratio to linear value).`);
       if (p.strat === 'dpwm1' && samp === 'nat')
         res.info.push('With natural sampling the clamp transitions fall inside carrier periods, so parts of pulses are lost and the fundamental drops. Regular sampling avoids this.');
       if (M > LINEAR_LIMIT[p.strat] + 1e-9) {
@@ -302,6 +391,8 @@
       if (mmc && mm === 'ps2') res.info.push(`The lower-arm carriers are shifted a further 180°/N against the upper arm. The number of inserted submodules per leg then varies between N − 1 and N + 1 (the arm inductors take the difference), and v_az has 2N + 1 = ${2 * Nm + 1} levels.`);
       if (ps) res.info.push(`Each cell's carrier is shifted by ${(180 / N).toFixed(0)}°. Cell harmonics cancel below h = 2Np = ${2 * N * p.p}.`);
       if (topo === 'hb' && p.hbmod === 'uni') res.info.push('In v_ab the harmonic groups around odd multiples of p cancel; the first group is around 2p.');
+    } else if (p.strat === 'dtc') {
+      simulateDTC(p, res);
     } else if (p.strat === 'sixstep') {
       for (let i = 0; i < NS; i++) {
         const th = (TWO_PI * i) / NS;
@@ -338,7 +429,8 @@
       if (!threePh) y[i] = p.out === 'vaz' ? a : a - b;
       else y[i] = p.out === 'vaz' ? a : p.out === 'vab' ? a - b : a - (a + b + c) / 3;
     }
-    if (p.out === 'ia') {
+    if (p.out === 'ia' && res.dtc) y.set(dtcI);
+    else if (p.out === 'ia') {
       // i = v / Z(h), Z(h) = cos φ + j h sin φ (|Z| = 1 at the fundamental)
       re.set(y); im.fill(0);
       fft.forward(re, im);
@@ -377,6 +469,7 @@
     res.wthd = Math.sqrt(w2) / amp[1];
     const transitions = (arr) => { let n = 0; for (let i = 0; i < NS; i++) if (arr[i] !== arr[(i + NS - 1) % NS]) n++; return n; };
     res.commutations = transitions(sw[0]);
+    if (res.dtc) res.dtc.fsw = res.commutations / 2 / res.dtc.Te;
     if (mmc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nm }, (_, j) => transitions(cellA[0][j]));
     if (fc && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: Nf }, (_, j) => transitions(cellA[0][j]));
     if (topo === 'chb' && CARRIER_BASED.has(p.strat)) res.cellComm = Array.from({ length: N }, (_, j) => transitions(cellA[0][j]) + transitions(cellB[0][j]));
@@ -390,14 +483,14 @@
         const a = sw[0][i], b = sw[1][i], c = sw[2][i];
         const va = (2 / 3) * (a - 0.5 * b - 0.5 * c), vb = (b - c) / SQRT3;
         pa += va * dth; pb += vb * dth;
-        psiA[i] = pa; psiB[i] = pb; ma += pa; mb += pb;
+        if (!res.dtc) { psiA[i] = pa; psiB[i] = pb; } ma += pa; mb += pb;
         const key = Math.round(va * 1e4) + ',' + Math.round(vb * 1e4);
         const e = dw.get(key);
         if (e) e.d += 1 / NS; else dw.set(key, { va, vb, d: 1 / NS });
       }
       res.dwell = [...dw.values()];
       ma /= NS; mb /= NS;
-      for (let i = 0; i < NS; i++) { psiA[i] -= ma; psiB[i] -= mb; }
+      if (!res.dtc) for (let i = 0; i < NS; i++) { psiA[i] -= ma; psiB[i] -= mb; }
       let cr = 0, ci = 0;
       for (let i = 0; i < NS; i++) {
         const a = sw[0][i], v = a - (a + sw[1][i] + sw[2][i]) / 3, th = (TWO_PI * i) / NS;
@@ -530,6 +623,8 @@
     const xFmt = (x) => x + '°';
     const threePh = p.topo !== 'hb';
 
+    if (res.dtc) drawTorque(ctx, top, p, i1, degStep);
+    else {
     // top: carriers and references
     let rmax = 1;
     for (let k = 0; k < 3; k++) for (let i = 0; i < NS; i += 8) if (!Number.isNaN(ref[k][i])) rmax = Math.max(rmax, Math.abs(ref[k][i]));
@@ -547,15 +642,16 @@
     trace(ctx, top, ref[0], 0, i1, -ry, ry, colors['c-message'], 1.8, carrierShown ? null : [6, 4]);
     if (res.nCars) tItems.push([res.nCars > 1 ? 'carriers' : 'carrier', colors['c-carrier']]);
     header(ctx, top, !carrierShown ? 'Fundamental reference' : res.nCars ? 'Reference and carrier' : 'Reference', tItems);
+    }
 
     // bottom: output
     let ymax;
     if (p.out === 'ia') { let m = 0; for (let i = 0; i < NS; i++) m = Math.max(m, Math.abs(y[i])); ymax = niceCeil(m * 1.15 || 1); }
     else ymax = { vaz: 1.25, vab: 2.5, van: 1.5 }[p.out];
-    axes(ctx, bot, 0, p.view, -ymax, ymax, { xStep: degStep, xFmt, yStep: ymax > 2 ? 1 : 0.5 });
+    axes(ctx, bot, 0, p.view, -ymax, ymax, { xStep: degStep, xFmt, yStep: p.out === 'ia' ? undefined : ymax > 2 ? 1 : 0.5 });
     trace(ctx, bot, y, 0, i1, -ymax, ymax, colors['c-signal'], p.out === 'ia' ? 1.6 : 1.1);
     trace(ctx, bot, fund, 0, i1, -ymax, ymax, colors['c-message'], 1.6, [6, 4]);
-    header(ctx, bot, OUT_LABEL[p.out] + (p.out === 'ia' ? ' (pu)' : ' / Vdc'), [[OUT_LABEL[p.out], colors['c-signal']], ['fundamental', colors['c-message'], [6, 4]]]);
+    header(ctx, bot, OUT_LABEL[p.out] + (p.out === 'ia' ? (res.dtc ? ' (A)' : ' (pu)') : ' / Vdc'), [[OUT_LABEL[p.out], colors['c-signal']], ['fundamental', colors['c-message'], [6, 4]]]);
     ctx.fillStyle = colors.muted; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     ctx.fillText('ω₁t', bot.x + bot.w, h - 1);
 
@@ -569,8 +665,23 @@
     }
   }
 
+  function drawTorque(ctx, box, p, i1, degStep) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < NS; i++) { lo = Math.min(lo, dtcT[i], dtcTref[i] - p.dtb); hi = Math.max(hi, dtcT[i], dtcTref[i] + p.dtb); }
+    const pad = Math.max(10, 0.08 * (hi - lo));
+    const st = niceStep(hi - lo + 2 * pad, 4), y0 = Math.floor((lo - pad) / st) * st, y1 = Math.ceil((hi + pad) / st) * st;
+    axes(ctx, box, 0, p.view, y0, y1, { xStep: degStep, xLabels: false, yStep: st, yFmt: (v) => v.toFixed(0) });
+    const band = (sgn) => { const a = new Float64Array(NS); for (let i = 0; i < NS; i++) a[i] = dtcTref[i] + (sgn * p.dtb) / 2; return a; };
+    trace(ctx, box, band(1), 0, i1, y0, y1, colors['c-carrier'], 1, [2, 3]);
+    trace(ctx, box, band(-1), 0, i1, y0, y1, colors['c-carrier'], 1, [2, 3]);
+    trace(ctx, box, dtcTref, 0, i1, y0, y1, colors['c-message'], 1.6, [6, 4]);
+    trace(ctx, box, dtcT, 0, i1, y0, y1, colors['c-signal'], 1.2);
+    header(ctx, box, 'Torque (Nm)', [['T', colors['c-signal']], ['T*', colors['c-message'], [6, 4]], ['band', colors['c-carrier'], [2, 3]]]);
+  }
+
   function hmaxFor(p, res) {
     if (p.hmax !== 'auto') return parseInt(p.hmax, 10);
+    if (res.dtc) return 200;
     if (!CARRIER_BASED.has(p.strat)) return 50;
     if (res.mmc && p.mmcmod === 'nlm') return 50;
     const target = res.ps ? 2 * p.cells * p.p + 2 * p.p : res.fc ? p.fcn * p.p + 2 * p.p
@@ -645,7 +756,7 @@
     ctx.save();
     ctx.translate(11, box.y + box.h / 2); ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(dbScale ? 'dB re Vdc' : (p.out === 'ia' ? 'amplitude (pu)' : 'amplitude / Vdc'), 0, 0);
+    ctx.fillText(dbScale ? 'dB re Vdc' : (p.out === 'ia' ? (res.dtc ? 'amplitude (A)' : 'amplitude (pu)') : 'amplitude / Vdc'), 0, 0);
     ctx.restore();
   }
 
@@ -732,8 +843,18 @@
     for (let i = 0; i < NS; i += 4) R = Math.max(R, Math.hypot(psiA[i], psiB[i]));
     const P1 = plotIn(b1, R * 1.1);
     axesCross(b1);
-    ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), res.V1an * P1.k, 0, TWO_PI); ctx.stroke();
+    if (res.dtc) { // hysteresis band and the six sectors
+      ctx.strokeStyle = colors['c-grid']; ctx.lineWidth = 1;
+      for (let k = 0; k < 6; k++) {
+        const a = Math.PI / 6 + (k * Math.PI) / 3;
+        ctx.beginPath(); ctx.moveTo(P1.X(0), P1.Y(0)); ctx.lineTo(P1.X(R * 1.05 * Math.cos(a)), P1.Y(R * 1.05 * Math.sin(a))); ctx.stroke();
+      }
+      ctx.setLineDash([2, 3]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.2;
+      for (const r of [p.psr - p.dpb / 2, p.psr + p.dpb / 2]) { ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), r * P1.k, 0, TWO_PI); ctx.stroke(); }
+    } else {
+      ctx.setLineDash([6, 4]); ctx.strokeStyle = colors['c-message']; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(P1.X(0), P1.Y(0), res.V1an * P1.k, 0, TWO_PI); ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.strokeStyle = colors['c-signal']; ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -744,11 +865,11 @@
     ctx.stroke();
     ctx.fillStyle = colors['c-message'];
     ctx.beginPath(); ctx.arc(P1.X(psiA[ic]), P1.Y(psiB[ic]), 4, 0, TWO_PI); ctx.fill();
-    header(ctx, { x: b1.x, y: b1.y, w: b1.s }, 'Stator flux ψ', []);
+    header(ctx, { x: b1.x, y: b1.y, w: b1.s }, res.dtc ? 'Stator flux ψ (Vs)' : 'Stator flux ψ', []);
 
     ctx.fillStyle = colors.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
     ctx.font = font(10);
-    ctx.fillText('dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
+    ctx.fillText(res.dtc ? 'dotted: flux band ψ* ± Δψ/2' : 'dashed: fundamental', b1.x + 6, b1.y + b1.s - 4);
     ctx.fillText('dot size: dwell time', b0.x + 6, b0.y + b0.s - 4);
   }
 
@@ -945,11 +1066,17 @@
     const pct = (v) => (Number.isFinite(v) ? (100 * v).toFixed(2) + ' %' : '—');
     const threePh = p.topo !== 'hb';
     if (!res.failed) {
-      const unit = p.out === 'ia' ? ' pu' : ' Vdc';
+      const unit = p.out === 'ia' ? (res.dtc ? ' A' : ' pu') : ' Vdc';
       rows.push(['Fundamental ' + OUT_LABEL[p.out] + ',1', res.V1.toFixed(3) + unit]);
-      if (p.strat !== 'sixstep') {
+      if (p.strat !== 'sixstep' && !res.dtc) {
         const lin = threePh ? { vaz: p.M, van: p.M, vab: SQRT3 * p.M, ia: p.M }[p.out] : { vaz: p.M, vab: 2 * p.M, ia: 2 * p.M }[p.out];
         if (lin > 0) rows.push(['Ratio to linear value', (res.V1 / lin).toFixed(3)]);
+      }
+      if (res.dtc) {
+        rows.push(['Torque, mean' + (res.dtc.step ? ' after step' : ''), res.dtc.Tmean.toFixed(0) + ' Nm']);
+        rows.push(['Torque ripple, peak to peak', res.dtc.Tpp.toFixed(0) + ' Nm']);
+        rows.push(['Flux ripple, peak to peak', (1000 * res.dtc.psiPP).toFixed(0) + ' mVs']);
+        rows.push(['Average switching frequency', (res.dtc.fsw / 1000).toFixed(2) + ' kHz']);
       }
       rows.push(['THD', pct(res.thd)]);
       if (p.out !== 'ia') {
@@ -989,12 +1116,19 @@
       const okT = !el.dataset.topo || el.dataset.topo.split(' ').includes(p.topo);
       el.hidden = !(okS && okT);
     });
-    $('phi-ctl').hidden = p.out !== 'ia';
+    $('phi-ctl').hidden = p.out !== 'ia' || p.strat === 'dtc'; // DTC drives the machine model, not the R-L load
     if (p.topo === 'mmc' && p.mmcmod === 'nlm') $('p-ctl').hidden = true; // no carrier
     $('M-out').textContent = p.M.toFixed(2);
     $('p-out').textContent = String(p.p);
     $('phi-out').textContent = p.phi + '°';
     $('cur-out').textContent = p.cur.toFixed(0) + '°';
+    $('cph-out').textContent = p.cph + '°';
+    $('tmin-out').textContent = p.tmin ? p.tmin + ' µs' : 'off';
+    $('tq-out').textContent = p.tq + ' Nm';
+    $('dtb-out').textContent = p.dtb + ' Nm';
+    $('psr-out').textContent = p.psr.toFixed(2) + ' Vs';
+    $('dpb-out').textContent = (1000 * p.dpb).toFixed(0) + ' mVs';
+    $('rpm-out').textContent = p.rpm + ' rpm';
   }
 
   let lastKey = '', lastRes = null;
@@ -1029,7 +1163,7 @@
   function readHash() {
     const q = new URLSearchParams(location.hash.slice(1));
     for (const id of ctlIds) if (q.has(id)) $(id).value = q.get(id);
-    const src = q.get('src') || '';
+    const raw = q.get('src') || '', src = (window.PWM_SOURCE_ALIAS || {})[raw] || raw;
     $('exSrc').value = SOURCES.some((s) => s.id === src) ? src : '';
     fillExamples();
     showExample(q.get('ex') || '');
